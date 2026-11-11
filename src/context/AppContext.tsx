@@ -85,7 +85,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [userInfo, setUserInfo] = useState<XtreamUserInfo | null>(null);
   const [serverInfo, setServerInfo] = useState<XtreamServerInfo | null>(null);
   const [isLoadingAuth, setIsLoadingAuth] = useState<boolean>(true);
-  const [activeTab, setActiveTab] = useState<ActiveTab>("home");
+  const [activeTab, setActiveTabState] = useState<ActiveTab>("home");
+
+  const setActiveTab = (tab: ActiveTab) => {
+    setActiveTabState(tab);
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "instant" });
+    }
+  };
 
   // Profiles
   const [profiles, setProfiles] = useState<XtreamProfile[]>(DEFAULT_PROFILES);

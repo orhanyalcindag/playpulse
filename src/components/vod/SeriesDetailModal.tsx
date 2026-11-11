@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useApp } from "@/context/AppContext";
 import { SeriesItem, SeriesInfoResponse, EpisodeItem } from "@/types/iptv";
 import {
@@ -36,6 +37,11 @@ export function SeriesDetailModal({ series, onClose }: SeriesDetailModalProps) {
   const [seriesInfo, setSeriesInfo] = useState<SeriesInfoResponse | null>(null);
   const [selectedSeason, setSelectedSeason] = useState<string>("1");
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [mounted, setMounted] = useState<boolean>(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const favId = `series-${series.series_id}`;
   const isFav = isFavorite(favId);
@@ -136,13 +142,21 @@ export function SeriesDetailModal({ series, onClose }: SeriesDetailModalProps) {
   const rating = series.rating || seriesInfo?.info?.rating;
   const plot = seriesInfo?.info?.plot || series.plot;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md animate-fade-in overflow-y-auto">
-      <div className="relative w-full max-w-4xl bg-dark-surface border border-white/10 rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden my-auto max-h-[92vh] flex flex-col">
+  if (!mounted || typeof document === "undefined") return null;
+
+  return createPortal(
+    <div
+      onClick={onClose}
+      className="fixed inset-0 z-[70] flex items-center justify-center p-2.5 sm:p-6 bg-black/85 backdrop-blur-md animate-fade-in overflow-y-auto"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="relative w-full max-w-full sm:max-w-4xl bg-dark-surface border border-white/10 rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden my-auto max-h-[92vh] flex flex-col"
+      >
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 z-30 p-2.5 rounded-full bg-black/70 hover:bg-black/95 text-white transition-all cursor-pointer border border-white/10 shadow-lg hover:scale-105"
+          className="absolute top-3 right-3 sm:top-4 sm:right-4 z-40 p-2 sm:p-2.5 rounded-full bg-black/80 hover:bg-black text-white transition-all cursor-pointer border border-white/20 shadow-xl hover:scale-110 active:scale-95"
           title="Kapat"
         >
           <X className="w-5 h-5" />
@@ -208,7 +222,7 @@ export function SeriesDetailModal({ series, onClose }: SeriesDetailModalProps) {
         </div>
 
         {/* Scrollable Content Body */}
-        <div className="p-5 sm:p-7 overflow-y-auto custom-scrollbar flex-1 space-y-6">
+        <div className="p-5 sm:p-7 pb-20 sm:pb-7 overflow-y-auto custom-scrollbar flex-1 space-y-6">
           {/* Header Info: Poster + Title + Rating */}
           <div className="flex flex-col sm:flex-row gap-5 items-start">
             {/* Vertical Series Poster */}
@@ -429,6 +443,7 @@ export function SeriesDetailModal({ series, onClose }: SeriesDetailModalProps) {
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

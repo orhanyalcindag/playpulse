@@ -373,20 +373,23 @@ export function HomeView() {
                   className="group relative flex-none w-[140px] sm:w-[170px] bg-dark-surface rounded-2xl overflow-hidden border border-white/5 hover:border-brand/40 transition-all duration-300 hover:-translate-y-1.5 shadow-md flex flex-col select-none cursor-pointer"
                 >
                   <div className="relative aspect-[2/3] w-full bg-zinc-900 overflow-hidden">
+                    {/* Fallback Icon */}
+                    <div className="absolute inset-0 flex items-center justify-center bg-zinc-900 text-zinc-700">
+                      <Film className="w-8 h-8" />
+                    </div>
+
                     {movie.stream_icon ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={movie.stream_icon}
                         alt={movie.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        className="relative z-1 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         loading="lazy"
                         onError={(e) => {
                           (e.target as HTMLElement).style.display = "none";
                         }}
                       />
-                    ) : (
-                      <Film className="w-8 h-8 text-zinc-700 m-auto mt-12" />
-                    )}
+                    ) : null}
 
                     <div className="absolute inset-0 bg-gradient-to-t from-dark-surface via-transparent to-transparent opacity-80" />
 
@@ -442,20 +445,23 @@ export function HomeView() {
                   className="group relative flex-none w-[140px] sm:w-[170px] bg-dark-surface rounded-2xl overflow-hidden border border-white/5 hover:border-brand/40 transition-all duration-300 hover:-translate-y-1.5 shadow-md flex flex-col select-none cursor-pointer"
                 >
                   <div className="relative aspect-[2/3] w-full bg-zinc-900 overflow-hidden">
+                    {/* Fallback Icon */}
+                    <div className="absolute inset-0 flex items-center justify-center bg-zinc-900 text-zinc-700">
+                      <Clapperboard className="w-8 h-8" />
+                    </div>
+
                     {series.cover ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={series.cover}
                         alt={series.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        className="relative z-1 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         loading="lazy"
                         onError={(e) => {
                           (e.target as HTMLElement).style.display = "none";
                         }}
                       />
-                    ) : (
-                      <Clapperboard className="w-8 h-8 text-zinc-700 m-auto mt-12" />
-                    )}
+                    ) : null}
 
                     <div className="absolute inset-0 bg-gradient-to-t from-dark-surface via-transparent to-transparent opacity-80" />
 

@@ -170,7 +170,7 @@ export function MoviesView() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 animate-fade-in pb-24">
+    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 animate-fade-in pb-24 overflow-x-hidden">
       {/* Top Banner / Heading */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
@@ -186,7 +186,7 @@ export function MoviesView() {
         {/* Right Controls: Sort & Search */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full md:w-auto">
           {/* Sort Dropdown */}
-          <div className="relative">
+          <div className="relative w-full sm:w-auto">
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as any)}
@@ -203,7 +203,7 @@ export function MoviesView() {
           </div>
 
           {/* Search Bar */}
-          <div className="relative w-full sm:w-72">
+          <div className="relative w-full sm:w-72 max-w-full">
             <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-zinc-400">
               <Search className="w-4 h-4" />
             </div>
@@ -260,30 +260,30 @@ export function MoviesView() {
               return (
                 <div
                   key={movie.stream_id}
-                  className="group relative bg-dark-surface hover:bg-dark-elevated rounded-2xl overflow-hidden border border-white/5 hover:border-brand/50 transition-all duration-300 shadow-sm hover:shadow-xl hover:shadow-brand/20 hover:-translate-y-1.5 flex flex-col select-none"
+                  className="min-w-0 group relative bg-dark-surface hover:bg-dark-elevated rounded-2xl overflow-hidden border border-white/5 hover:border-brand/50 transition-all duration-300 shadow-sm hover:shadow-xl hover:shadow-brand/20 hover:-translate-y-1.5 flex flex-col select-none"
                 >
                   {/* Poster Area - Clicking anywhere opens Movie Details modal */}
                   <div
                     onClick={() => setSelectedMovie(movie)}
                     className="relative aspect-[2/3] w-full bg-zinc-900 overflow-hidden cursor-pointer"
                   >
+                    {/* Fallback Icon behind image */}
+                    <div className="absolute inset-0 flex items-center justify-center bg-zinc-900 text-zinc-700">
+                      <Film className="w-10 h-10" />
+                    </div>
+
                     {movie.stream_icon ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={movie.stream_icon}
                         alt={movie.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        className="relative z-1 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         loading="lazy"
                         onError={(e) => {
                           (e.target as HTMLElement).style.display = "none";
                         }}
                       />
                     ) : null}
-
-                    {/* Fallback Icon */}
-                    <div className="absolute inset-0 flex items-center justify-center -z-1 text-zinc-700">
-                      <Film className="w-10 h-10" />
-                    </div>
 
                     {/* Dark gradient shadow */}
                     <div className="absolute inset-0 bg-gradient-to-t from-dark-surface via-transparent to-black/30 opacity-80 group-hover:opacity-50 transition-opacity" />
@@ -335,23 +335,23 @@ export function MoviesView() {
                   </div>
 
                   {/* Movie Title & Info Bottom Bar */}
-                  <div className="p-3 flex-1 flex flex-col justify-between">
+                  <div className="p-2.5 sm:p-3 flex-1 flex flex-col justify-between min-w-0">
                     <h3
                       onClick={() => setSelectedMovie(movie)}
-                      className="text-xs sm:text-sm font-semibold text-zinc-100 hover:text-brand line-clamp-1 transition-colors cursor-pointer"
+                      className="text-xs sm:text-sm font-semibold text-zinc-100 hover:text-brand truncate transition-colors cursor-pointer"
                     >
                       {movie.name}
                     </h3>
 
-                    <div className="flex items-center justify-between text-[11px] text-zinc-400 mt-2 pt-1 border-t border-white/5">
+                    <div className="flex items-center justify-between text-[11px] text-zinc-400 mt-2 pt-1 border-t border-white/5 min-w-0">
                       {/* Left: Details text */}
                       <button
                         type="button"
                         onClick={() => setSelectedMovie(movie)}
-                        className="text-brand font-semibold hover:underline flex items-center gap-1 cursor-pointer"
+                        className="text-brand font-semibold hover:underline flex items-center gap-1 cursor-pointer truncate"
                       >
-                        <Info className="w-3.5 h-3.5 text-brand" />
-                        <span>Detay & İzle</span>
+                        <Info className="w-3.5 h-3.5 text-brand shrink-0" />
+                        <span className="truncate">Detay</span>
                       </button>
 
                       {/* Right: Info / Details Button */}
@@ -361,11 +361,10 @@ export function MoviesView() {
                           e.stopPropagation();
                           setSelectedMovie(movie);
                         }}
-                        className="text-zinc-400 hover:text-white flex items-center gap-1 cursor-pointer p-0.5 hover:bg-white/10 rounded transition-colors"
+                        className="text-zinc-400 hover:text-white flex items-center gap-1 cursor-pointer p-0.5 hover:bg-white/10 rounded transition-colors shrink-0"
                         title="Detaylı Bilgi"
                       >
                         <Info className="w-3.5 h-3.5" />
-                        <span className="hidden sm:inline">Detay</span>
                       </button>
                     </div>
                   </div>

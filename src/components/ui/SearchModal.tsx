@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { useApp } from "@/context/AppContext";
 import { LiveStream, VodStream, SeriesItem } from "@/types/iptv";
 import {
@@ -27,6 +28,11 @@ export function SearchModal() {
 
   const [selectedMovie, setSelectedMovie] = useState<VodStream | null>(null);
   const [selectedSeries, setSelectedSeries] = useState<SeriesItem | null>(null);
+  const [mounted, setMounted] = useState<boolean>(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Load all initial lists when search is opened
   useEffect(() => {
@@ -108,10 +114,18 @@ export function SearchModal() {
     setSearchOpen(false);
   };
 
-  return (
+  if (!mounted || typeof document === "undefined") return null;
+
+  return createPortal(
     <>
-      <div className="fixed inset-0 z-50 flex items-start justify-center pt-12 sm:pt-20 p-4 bg-black/80 backdrop-blur-md animate-fade-in">
-        <div className="relative w-full max-w-2xl bg-dark-surface border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+      <div
+        onClick={() => setSearchOpen(false)}
+        className="fixed inset-0 z-[70] flex items-start justify-center pt-12 sm:pt-20 p-4 bg-black/80 backdrop-blur-md animate-fade-in"
+      >
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="relative w-full max-w-full sm:max-w-2xl bg-dark-surface border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]"
+        >
           {/* Search Input Bar */}
           <div className="relative flex items-center border-b border-dark-border px-4 py-3 bg-dark-elevated">
             <Search className="w-5 h-5 text-brand shrink-0 mr-3" />
@@ -140,7 +154,7 @@ export function SearchModal() {
           </div>
 
           {/* Results Container */}
-          <div className="overflow-y-auto p-4 space-y-6">
+          <div className="overflow-y-auto p-4 pb-20 sm:pb-4 space-y-6">
             {isLoading ? (
               <div className="py-12 flex flex-col items-center justify-center text-zinc-400">
                 <Loader2 className="w-8 h-8 animate-spin text-brand mb-2" />
@@ -311,6 +325,7 @@ export function SearchModal() {
           onClose={() => setSelectedSeries(null)}
         />
       )}
-    </>
+    </>,
+    document.body
   );
 }

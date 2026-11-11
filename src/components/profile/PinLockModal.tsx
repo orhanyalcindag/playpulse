@@ -59,7 +59,7 @@ export function PinLockModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in">
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in">
       <div className="relative w-full max-w-sm rounded-3xl bg-zinc-900 border border-white/10 p-6 sm:p-8 text-center shadow-2xl">
         {/* Close Button */}
         <button

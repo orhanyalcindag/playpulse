@@ -48,7 +48,7 @@ export default function AppMain() {
       {!isAuthenticated ? (
         <LoginForm />
       ) : (
-        <main className="min-h-screen bg-dark-bg text-zinc-100 flex flex-col">
+        <main className="min-h-screen bg-dark-bg text-zinc-100 flex flex-col w-full max-w-full overflow-x-hidden">
           {/* Top Navbar */}
           <Navbar />
 

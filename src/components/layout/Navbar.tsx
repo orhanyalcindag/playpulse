@@ -71,19 +71,19 @@ export function Navbar() {
   const isDemo = credentials?.serverUrl.toLowerCase().includes("demo");
 
   return (
-    <header className="sticky top-0 z-40 w-full glass-nav transition-all">
+    <header className="sticky top-0 z-40 w-full max-w-[100vw] overflow-x-hidden glass-nav transition-all">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Brand */}
-        <div className="flex items-center gap-8">
+        <div className="flex items-center gap-4 sm:gap-8 min-w-0">
           <button
             onClick={() => setActiveTab("home")}
-            className="flex items-center text-left group cursor-pointer focus:outline-none"
+            className="flex items-center text-left group cursor-pointer focus:outline-none shrink-0"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/images/logo_transparent.png"
               alt="PlayPulse - Streaming Evolved"
-              className="h-10 sm:h-11 w-auto object-contain transition-transform duration-300 group-hover:scale-105"
+              className="h-8 sm:h-10 w-auto object-contain transition-transform duration-300 group-hover:scale-105 shrink-0"
             />
           </button>
 
@@ -112,11 +112,11 @@ export function Navbar() {
         </div>
 
         {/* Right Action Icons & User Profile */}
-        <div className="flex items-center gap-2 sm:gap-2.5">
+        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
           {/* Kids Mode Toggle */}
           <button
             onClick={toggleKidsMode}
-            className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`p-2 sm:p-2.5 rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 ${
               isKidsMode
                 ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/50 shadow-md shadow-emerald-500/20"
                 : "bg-zinc-800/80 hover:bg-zinc-700/80 text-zinc-400 hover:text-white border-zinc-700/50"
@@ -132,7 +132,7 @@ export function Navbar() {
           {/* Search Trigger */}
           <button
             onClick={() => setSearchOpen(true)}
-            className="p-2.5 rounded-xl bg-zinc-800/80 hover:bg-zinc-700/80 text-zinc-300 hover:text-white border border-zinc-700/50 transition-all cursor-pointer"
+            className="p-2 sm:p-2.5 rounded-xl bg-zinc-800/80 hover:bg-zinc-700/80 text-zinc-300 hover:text-white border border-zinc-700/50 transition-all cursor-pointer"
             title="İçerik Ara (Ctrl + K)"
           >
             <Search className="w-4 h-4" />
@@ -141,7 +141,7 @@ export function Navbar() {
           {/* Profile Switcher & Settings Button */}
           <button
             onClick={() => setIsProfileManagerOpen(true)}
-            className="p-2.5 rounded-xl bg-zinc-800/80 hover:bg-zinc-700/80 text-zinc-300 hover:text-white border border-zinc-700/50 transition-all cursor-pointer"
+            className="p-2 sm:p-2.5 rounded-xl bg-zinc-800/80 hover:bg-zinc-700/80 text-zinc-300 hover:text-white border border-zinc-700/50 transition-all cursor-pointer"
             title="IPTV Profillerini ve Hesapları Yönet"
           >
             <Settings className="w-4 h-4 text-zinc-300 hover:text-brand" />
@@ -150,7 +150,7 @@ export function Navbar() {
           {/* User Status / Account pill */}
           <button
             onClick={() => setIsProfileManagerOpen(true)}
-            className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-dark-elevated border border-dark-border hover:border-brand/40 text-xs transition-all cursor-pointer text-left"
+            className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-dark-elevated border border-dark-border hover:border-brand/40 text-xs transition-all cursor-pointer text-left"
             title="Profil Değiştir veya Yönet"
           >
             <div

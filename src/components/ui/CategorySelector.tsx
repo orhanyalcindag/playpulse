@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { cleanCategoryName } from "@/lib/utils";
 import {
   ChevronDown,
@@ -36,7 +37,12 @@ export function CategorySelector({
 }: CategorySelectorProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchFilter, setSearchFilter] = useState("");
+  const [mounted, setMounted] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Auto-focus search input when modal opens
   useEffect(() => {
@@ -164,14 +170,14 @@ export function CategorySelector({
       </div>
 
       {/* Full Categories Modal / Dialog Sheet */}
-      {isModalOpen && (
+      {isModalOpen && mounted && typeof document !== "undefined" && createPortal(
         <div
           onClick={() => setIsModalOpen(false)}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in"
+          className="fixed inset-0 z-[70] flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md animate-fade-in"
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="relative w-full max-w-3xl max-h-[85vh] rounded-3xl bg-zinc-950 border border-white/10 shadow-2xl flex flex-col overflow-hidden"
+            className="relative w-full max-w-full sm:max-w-3xl max-h-[88vh] rounded-3xl bg-zinc-950 border border-white/10 shadow-2xl flex flex-col overflow-hidden"
           >
             {/* Modal Header */}
             <div className="p-4 sm:p-6 border-b border-white/10 bg-zinc-900/60 flex items-center justify-between">
@@ -220,7 +226,7 @@ export function CategorySelector({
             </div>
 
             {/* Categories Multi-Column Grid */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 pb-20 sm:pb-6 space-y-4">
               {/* All Items Option Card */}
               <button
                 onClick={() => handleSelect("all")}
@@ -286,7 +292,8 @@ export function CategorySelector({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

@@ -213,7 +213,7 @@ export function ProfileManagerModal() {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in">
       <div className="relative w-full max-w-2xl bg-dark-card border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="p-5 sm:p-6 border-b border-zinc-800 flex items-center justify-between bg-dark-elevated">
@@ -271,7 +271,7 @@ export function ProfileManagerModal() {
         </div>
 
         {/* Content Area */}
-        <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
+        <div className="p-6 pb-20 sm:pb-6 overflow-y-auto custom-scrollbar flex-1">
           {activeTab === "list" ? (
             <div className="space-y-3.5">
               {/* Active Account Live Diagnostics */}

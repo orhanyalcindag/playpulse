@@ -694,7 +694,7 @@ export function VideoPlayerModal() {
       ref={containerRef}
       onMouseMove={resetControlsTimeout}
       onClick={handleContainerClick}
-      className="fixed inset-0 z-50 bg-black flex items-center justify-center select-none overflow-hidden"
+      className="fixed inset-0 z-[80] bg-black flex items-center justify-center select-none overflow-hidden"
     >
       {/* HTML5 Video Element */}
       <video
