@@ -104,9 +104,16 @@ export function LoginForm() {
           </div>
 
           {errorMessage && (
-            <div className="mb-5 p-3.5 rounded-xl bg-red-950/60 border border-red-800/60 flex items-start gap-3 text-red-200 text-sm animate-fade-in">
-              <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
-              <span>{errorMessage}</span>
+            <div className="mb-5 p-3.5 rounded-xl bg-red-950/60 border border-red-800/60 flex flex-col gap-2 text-red-200 text-sm animate-fade-in">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+                <span className="leading-relaxed">{errorMessage}</span>
+              </div>
+              {(errorMessage.includes("engelliyor") || errorMessage.includes("Failed to fetch") || errorMessage.includes("bağlanılamadı")) && (
+                <div className="text-xs text-zinc-400 pl-8 pt-1 border-t border-red-800/30">
+                  💡 <strong>İpucu:</strong> Birçok IPTV sağlayıcısı yurtdışı bulut (AWS/Vercel) sunucularını engeller. Sağlayıcınızın <code className="text-zinc-300">https://</code> adresi varsa onu deneyebilir veya yerel ağınızdan (localhost) kesintisiz kullanabilirsiniz.
+                </div>
+              )}
             </div>
           )}
 

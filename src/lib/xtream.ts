@@ -59,10 +59,52 @@ export class XtreamService {
 
   private async fetchViaProxy<T>(directUrl: string): Promise<T> {
     const proxyUrl = `/api/proxy?url=${encodeURIComponent(directUrl)}`;
-    const res = await fetch(proxyUrl);
-    if (!res.ok) {
-      throw new Error(`API hatası: ${res.status} ${res.statusText}`);
+    let res: Response;
+
+    try {
+      res = await fetch(proxyUrl);
+    } catch (networkError: any) {
+      // If browser fetch to proxy failed, try direct client fetch if directUrl is https
+      if (typeof window !== "undefined" && directUrl.startsWith("https://")) {
+        try {
+          const directRes = await fetch(directUrl);
+          if (directRes.ok) {
+            return await directRes.json();
+          }
+        } catch {
+          // fallback failed, proceed with error
+        }
+      }
+      throw new Error(
+        "Ağ bağlantısı kurulamadı (Failed to fetch). İnternet bağlantınızı veya sunucu adresinizi kontrol edin."
+      );
     }
+
+    if (!res.ok) {
+      let errDetails = "";
+      try {
+        const errJson = await res.json();
+        errDetails = errJson.details || errJson.error || "";
+      } catch {
+        // Not JSON
+      }
+
+      if (res.status === 401) {
+        throw new Error("Kullanıcı adı veya şifre hatalı! (401 Unauthorized)");
+      }
+
+      if (res.status === 504 || res.status === 502) {
+        throw new Error(
+          errDetails ||
+            "IPTV sunucusu yanıt vermedi. Sunucu kapalı olabilir veya Vercel bulut IP'lerini engelliyor olabilir."
+        );
+      }
+
+      throw new Error(
+        errDetails || `IPTV API hatası: ${res.status} ${res.statusText}`
+      );
+    }
+
     return res.json();
   }
 
