@@ -2,6 +2,7 @@ export interface XtreamCredentials {
   serverUrl: string;
   username: string;
   password: string;
+  connectionMode?: "proxy" | "direct";
 }
 
 export interface XtreamUserInfo {

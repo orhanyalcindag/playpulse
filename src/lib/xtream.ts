@@ -58,6 +58,20 @@ export class XtreamService {
   }
 
   private async fetchViaProxy<T>(directUrl: string): Promise<T> {
+    if (this.credentials.connectionMode === "direct") {
+      try {
+        const res = await fetch(directUrl);
+        if (!res.ok) {
+          throw new Error(`Sunucu Hatası: ${res.status} ${res.statusText}`);
+        }
+        return await res.json();
+      } catch (err: any) {
+        throw new Error(
+          `Doğrudan bağlantı başarısız (${err?.message || "CORS engeli"}). Tarayıcınızda "Allow CORS" eklentisinin aktif olduğundan emin olun.`
+        );
+      }
+    }
+
     const proxyUrl = `/api/proxy?url=${encodeURIComponent(directUrl)}`;
     let res: Response;
 

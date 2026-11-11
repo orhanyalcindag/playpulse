@@ -11,6 +11,7 @@ export function LoginForm() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(true);
+  const [useDirectMode, setUseDirectMode] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -40,6 +41,7 @@ export function LoginForm() {
         serverUrl: cleanUrl,
         username: username.trim(),
         password: password.trim(),
+        connectionMode: useDirectMode ? "direct" : "proxy",
       });
     } catch (err: any) {
       setErrorMessage(
@@ -178,8 +180,8 @@ export function LoginForm() {
               </div>
             </div>
 
-            {/* Remember Me */}
-            <div className="flex items-center justify-between pt-1">
+            {/* Options */}
+            <div className="flex flex-col gap-2.5 pt-1">
               <label className="flex items-center gap-2 cursor-pointer text-xs text-zinc-400 hover:text-zinc-200">
                 <input
                   type="checkbox"
@@ -188,6 +190,21 @@ export function LoginForm() {
                   className="w-4 h-4 rounded bg-dark-elevated border-dark-border text-brand focus:ring-brand focus:ring-offset-0 focus:ring-0"
                 />
                 <span>Beni Hatırla</span>
+              </label>
+
+              <label className="flex items-start gap-2 cursor-pointer text-xs text-zinc-400 hover:text-zinc-200">
+                <input
+                  type="checkbox"
+                  checked={useDirectMode}
+                  onChange={(e) => setUseDirectMode(e.target.checked)}
+                  className="w-4 h-4 rounded mt-0.5 bg-dark-elevated border-dark-border text-brand focus:ring-brand focus:ring-offset-0 focus:ring-0"
+                />
+                <span className="flex flex-col">
+                  <span className="font-medium text-zinc-300">Doğrudan Bağlantı Modu (Direct Client)</span>
+                  <span className="text-[10px] text-zinc-500">
+                    Vercel bulut proxy&apos;sini atlar. (Tarayıcıda &quot;Allow CORS&quot; eklentisi veya yerel ağ için önerilir)
+                  </span>
+                </span>
               </label>
             </div>
 
