@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="pulseGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff1a2b"/>
+      <stop offset="60%" stop-color="#e50914"/>
+      <stop offset="100%" stop-color="#80050c"/>
+    </linearGradient>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#181822"/>
+      <stop offset="100%" stop-color="#09090b"/>
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="16" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+
+  <!-- Background rounded rect -->
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad)"/>
+  <rect width="504" height="504" x="4" y="4" rx="108" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="4"/>
+
+  <!-- Glowing pulse waveform background accent -->
+  <path d="M70 256 L150 256 L180 180 L230 340 L280 200 L320 290 L350 256 L442 256"
+        fill="none" stroke="url(#pulseGrad)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" opacity="0.35"/>
+
+  <!-- Play Triangle Icon with embedded pulse rhythm -->
+  <g filter="url(#glow)">
+    <path d="M200 156 C200 144 213 137 223 143 L360 236 C370 243 370 257 360 264 L223 357 C213 363 200 356 200 344 Z"
+          fill="url(#pulseGrad)"/>
+    <!-- Highlight sheen -->
+    <path d="M220 180 L310 242 L220 300 Z"
+          fill="rgba(255,255,255,0.2)"/>
+  </g>
+
+  <!-- Sharp pulse line cutting forward -->
+  <path d="M120 256 L190 256 L210 210 L240 300 L275 190 L305 270 L325 256 L392 256"
+        fill="none" stroke="#ffffff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" opacity="0.9"/>
+</svg>

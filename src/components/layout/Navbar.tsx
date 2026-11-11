@@ -1,0 +1,150 @@
+"use client";
+
+import React from "react";
+import { useApp } from "@/context/AppContext";
+import { ActiveTab } from "@/types/iptv";
+import {
+  Play,
+  Tv,
+  Film,
+  Clapperboard,
+  Heart,
+  Home,
+  Search,
+  LogOut,
+  User,
+  Clock,
+  Sparkles,
+} from "lucide-react";
+
+export function Navbar() {
+  const {
+    activeTab,
+    setActiveTab,
+    userInfo,
+    logout,
+    favorites,
+    setSearchOpen,
+    credentials,
+  } = useApp();
+
+  const navItems: { id: ActiveTab; label: string; icon: React.ReactNode }[] = [
+    { id: "home", label: "Ana Sayfa", icon: <Home className="w-4 h-4" /> },
+    { id: "live", label: "Canlı TV", icon: <Tv className="w-4 h-4" /> },
+    { id: "movies", label: "Filmler", icon: <Film className="w-4 h-4" /> },
+    { id: "series", label: "Diziler", icon: <Clapperboard className="w-4 h-4" /> },
+    {
+      id: "favorites",
+      label: "Favorilerim",
+      icon: (
+        <span className="relative">
+          <Heart className="w-4 h-4" />
+          {Object.keys(favorites).length > 0 && (
+            <span className="absolute -top-1.5 -right-2 bg-brand text-[10px] font-bold text-white w-4 h-4 rounded-full flex items-center justify-center">
+              {Object.keys(favorites).length}
+            </span>
+          )}
+        </span>
+      ),
+    },
+  ];
+
+  const formatExpDate = (timestamp?: string) => {
+    if (!timestamp) return null;
+    try {
+      const date = new Date(parseInt(timestamp, 10) * 1000);
+      if (isNaN(date.getTime())) return null;
+      return date.toLocaleDateString("tr-TR", { year: "numeric", month: "short", day: "numeric" });
+    } catch {
+      return null;
+    }
+  };
+
+  const expDateString = formatExpDate(userInfo?.exp_date);
+  const isDemo = credentials?.serverUrl.toLowerCase().includes("demo");
+
+  return (
+    <header className="sticky top-0 z-40 w-full glass-nav transition-all">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        {/* Brand */}
+        <div className="flex items-center gap-8">
+          <button
+            onClick={() => setActiveTab("home")}
+            className="flex items-center text-left group cursor-pointer focus:outline-none"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/images/logo_transparent.png"
+              alt="PlayPulse - Streaming Evolved"
+              className="h-10 sm:h-11 w-auto object-contain transition-transform duration-300 group-hover:scale-105"
+            />
+          </button>
+
+          {/* Desktop Nav Items */}
+          <nav className="hidden md:flex items-center gap-1">
+            {navItems.map((item) => {
+              const isActive = activeTab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveTab(item.id)}
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium transition-all cursor-pointer ${
+                    isActive
+                      ? "bg-brand/15 text-white border border-brand/30 shadow-sm shadow-brand/20"
+                      : "text-zinc-400 hover:text-white hover:bg-zinc-800/60"
+                  }`}
+                >
+                  <span className={isActive ? "text-brand" : "text-zinc-400"}>
+                    {item.icon}
+                  </span>
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+
+        {/* Right Action Icons & User Profile */}
+        <div className="flex items-center gap-2.5 sm:gap-3">
+          {/* Search Trigger */}
+          <button
+            onClick={() => setSearchOpen(true)}
+            className="p-2.5 rounded-xl bg-zinc-800/80 hover:bg-zinc-700/80 text-zinc-300 hover:text-white border border-zinc-700/50 transition-all cursor-pointer"
+            title="İçerik Ara (Ctrl + K)"
+          >
+            <Search className="w-4 h-4" />
+          </button>
+
+          {/* User Status / Account pill */}
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-dark-elevated border border-dark-border text-xs">
+            <User className="w-3.5 h-3.5 text-brand" />
+            <span className="font-medium text-zinc-200 truncate max-w-[110px]">
+              {userInfo?.username || credentials?.username || "Kullanıcı"}
+            </span>
+
+            {isDemo ? (
+              <span className="inline-flex items-center gap-1 text-[10px] text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded border border-amber-400/20">
+                <Sparkles className="w-2.5 h-2.5" />
+                Demo
+              </span>
+            ) : expDateString ? (
+              <span className="text-[11px] text-zinc-400 border-l border-zinc-700 pl-2 flex items-center gap-1">
+                <Clock className="w-3 h-3 text-emerald-400" />
+                {expDateString}
+              </span>
+            ) : null}
+          </div>
+
+          {/* Logout */}
+          <button
+            onClick={logout}
+            className="p-2.5 rounded-xl bg-zinc-800/80 hover:bg-red-950/80 text-zinc-400 hover:text-red-400 border border-zinc-700/50 hover:border-red-800/50 transition-all cursor-pointer"
+            title="Çıkış Yap"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    </header>
+  );
+}
