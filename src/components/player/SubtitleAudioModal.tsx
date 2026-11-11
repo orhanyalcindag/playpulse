@@ -206,22 +206,22 @@ export function SubtitleAudioModal({
                   )}
                 </div>
 
-                {/* Audio Transcode Compatibility Mode (Fixes AC-3 silence in browsers) */}
+                {/* Audio Transcode Compatibility Mode (Fixes AC-3 silence and Smart TV video on browsers) */}
                 {mediaType !== "live" && onChangeAudioMode && (
                   <div className="pt-3 border-t border-white/5 space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-bold text-zinc-300 flex items-center gap-1.5">
                         <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                        <span>Ses Çözücü Uyumluluğu</span>
+                        <span>Smart TV & Ses Uyumluluğu</span>
                       </span>
                       {audioMode === "aac" && (
                         <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                          Ses Aktif (AAC)
+                          Smart TV / AAC Aktif
                         </span>
                       )}
                     </div>
                     <p className="text-[11px] text-zinc-400 leading-relaxed">
-                      Filmlerde ses gelmiyorsa (Dolby AC-3 tarayıcı kısıtı), <strong>AAC Çözücü</strong> modunu kullanın.
+                      LG webOS / Smart TV veya tarayıcılarda ses ve görüntü uyumluluğu için <strong>Smart TV & AAC</strong> modunu kullanın.
                     </p>
 
                     <div className="grid grid-cols-2 gap-2 pt-1">
@@ -234,10 +234,10 @@ export function SubtitleAudioModal({
                         }`}
                       >
                         <div className="flex items-center justify-between mb-1">
-                          <span className="font-bold text-emerald-400">AAC Çözücü</span>
+                          <span className="font-bold text-emerald-400">Smart TV / AAC</span>
                           {audioMode === "aac" && <Check className="w-3.5 h-3.5 text-emerald-400" />}
                         </div>
-                        <span className="text-[10px] text-zinc-400 block line-clamp-1">Önerilen (Ses Açık)</span>
+                        <span className="text-[10px] text-zinc-400 block line-clamp-1">Önerilen (Ses & Görüntü Açık)</span>
                       </button>
 
                       <button

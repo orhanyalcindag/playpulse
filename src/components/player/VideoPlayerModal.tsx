@@ -24,6 +24,7 @@ import {
   PictureInPicture,
   FastForward,
   HelpCircle,
+  Sparkles,
 } from "lucide-react";
 import { formatSecondsToTime } from "@/lib/utils";
 import { NextEpisodeCountdown } from "./NextEpisodeCountdown";
@@ -792,6 +793,9 @@ export function VideoPlayerModal() {
       <video
         ref={videoRef}
         className="w-full h-full object-contain cursor-pointer"
+        style={{ backgroundColor: "transparent" }}
+        {...{ "webkit-playsinline": "true" }}
+        playsInline
         onClick={(e) => {
           e.stopPropagation();
           handlePlayPause();
@@ -802,7 +806,6 @@ export function VideoPlayerModal() {
         onPlaying={() => setIsBuffering(false)}
         onTimeUpdate={handleTimeUpdate}
         autoPlay
-        playsInline
       >
         {nativeTrackBlobUrl && (
           <track
@@ -929,6 +932,19 @@ export function VideoPlayerModal() {
             >
               Yeniden Dene
             </button>
+
+            {playingMedia.type !== "live" && (
+              <button
+                onClick={() => {
+                  setPlaybackError(null);
+                  toggleAudioMode();
+                }}
+                className="px-4 py-2.5 bg-emerald-600/30 hover:bg-emerald-600/40 text-emerald-300 rounded-xl text-xs sm:text-sm font-semibold cursor-pointer border border-emerald-500/40 flex items-center gap-2 active:scale-95 transition-all"
+              >
+                <Sparkles className="w-4 h-4 text-emerald-400" />
+                <span>{audioMode === "aac" ? "Doğrudan Akışa Geç" : "Smart TV / AAC Moduna Geç"}</span>
+              </button>
+            )}
 
             <button
               onClick={handleCopyUrl}
@@ -1172,13 +1188,13 @@ export function VideoPlayerModal() {
                 }`}
                 title={
                   audioMode === "aac"
-                    ? "AAC Ses Çözücü Aktif (Tarayıcı uyumlu ses açık). Doğrudan akışa geçmek için tıklayın."
-                    : "Doğrudan Akış Aktif. Ses gelmiyorsa AAC Çözücüyü açmak için tıklayın."
+                    ? "Smart TV & AAC Modu Aktif (Evrensel TV Görüntü + AAC Ses). Ham IPTV bağlantısına geçmek için tıklayın."
+                    : "Doğrudan Akış Aktif. Ses gelmiyorsa veya görüntü siyah ekransa Smart TV / AAC modunu açmak için tıklayın."
                 }
               >
                 <Volume2 className={`w-4 h-4 ${audioMode === "aac" ? "text-emerald-400" : ""}`} />
                 <span className="hidden sm:inline">
-                  {audioMode === "aac" ? "AAC Ses" : "Doğrudan"}
+                  {audioMode === "aac" ? "Smart TV / AAC" : "Doğrudan"}
                 </span>
               </button>
             )}

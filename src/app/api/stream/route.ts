@@ -56,14 +56,25 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // Network resilience and user-agent for IPTV sources
   args.push(
+    "-reconnect", "1",
+    "-reconnect_at_eof", "1",
+    "-reconnect_streamed", "1",
+    "-reconnect_delay_max", "5",
+    "-user_agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     "-i", targetUrl,
-    "-c:v", "copy",                                           // Copy video stream with 0 re-encoding CPU cost
+    "-map", "0:v:0",                                          // Extract primary video track
+    "-map", "0:a:0?",                                         // Extract primary audio track (optional fallback)
+    "-c:v", "copy",                                           // Copy video stream with 0 CPU cost
+    "-flags", "+global_header",                               // Generate SPS/PPS global headers for TV decoders
+    "-bsf:v", "dump_extra",                                   // Dump extra parameter sets into keyframes for LG webOS/Smart TVs
     "-c:a", "aac",                                            // Convert AC-3 / E-AC-3 / DTS to standard AAC
     "-b:a", "192k",                                           // 192kbps high quality audio
     "-ac", "2",                                               // 2-channel stereo for universal browser playback
+    "-sn",                                                    // Ignore embedded subtitles to prevent muxer crashes
     "-f", "mp4",                                              // Output as MP4 container
-    "-movflags", "frag_keyframe+empty_moov+default_base_moof", // Fragmented MP4 for live piping
+    "-movflags", "frag_keyframe+default_base_moof",           // Write valid initial moov with SPS/PPS (no empty_moov) for Smart TV hardware decoders
     "pipe:1"
   );
 
