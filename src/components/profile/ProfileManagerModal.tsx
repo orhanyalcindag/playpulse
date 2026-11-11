@@ -42,6 +42,8 @@ export function ProfileManagerModal() {
     updateProfile,
     deleteProfile,
     testProfileConnection,
+    userInfo,
+    serverInfo,
   } = useApp();
 
   const [activeTab, setActiveTab] = useState<"list" | "create">("list");
@@ -272,6 +274,60 @@ export function ProfileManagerModal() {
         <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
           {activeTab === "list" ? (
             <div className="space-y-3.5">
+              {/* Active Account Live Diagnostics */}
+              {userInfo && (
+                <div className="p-4 rounded-xl bg-gradient-to-r from-zinc-900 via-zinc-900 to-zinc-800/80 border border-white/10 mb-4 shadow-sm">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-1.5">
+                      <Zap className="w-3.5 h-3.5 text-amber-400" />
+                      Aktif Hesap Teşhis & Sunucu Durumu
+                    </span>
+                    <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                      {userInfo.status || "Aktif"}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+                    <div className="p-2.5 rounded-lg bg-zinc-950/60 border border-white/5">
+                      <span className="text-[10px] text-zinc-500 block">Canlı Hat Durumu</span>
+                      <span className="font-mono font-bold text-zinc-200 mt-0.5 flex items-center gap-1.5">
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full ${
+                            parseInt(userInfo.active_cons || "0", 10) >= parseInt(userInfo.max_connections || "1", 10)
+                              ? "bg-amber-400 animate-pulse"
+                              : "bg-emerald-400"
+                          }`}
+                        />
+                        {userInfo.active_cons || 0} / {userInfo.max_connections || 1} Hat
+                      </span>
+                    </div>
+
+                    <div className="p-2.5 rounded-lg bg-zinc-950/60 border border-white/5">
+                      <span className="text-[10px] text-zinc-500 block">Akış Formatları</span>
+                      <span className="font-mono font-bold text-zinc-200 mt-0.5 block">
+                        {userInfo.allowed_output_formats?.join(", ").toUpperCase() || "TS, M3U8"}
+                      </span>
+                    </div>
+
+                    <div className="p-2.5 rounded-lg bg-zinc-950/60 border border-white/5">
+                      <span className="text-[10px] text-zinc-500 block">Sunucu Saat Dilimi</span>
+                      <span className="font-mono font-semibold text-zinc-300 mt-0.5 block truncate">
+                        {serverInfo?.timezone || "Europe/Istanbul"}
+                      </span>
+                    </div>
+
+                    <div className="p-2.5 rounded-lg bg-zinc-950/60 border border-white/5">
+                      <span className="text-[10px] text-zinc-500 block">Hesap Bitiş</span>
+                      <span className="font-mono font-bold text-emerald-400 mt-0.5 block">
+                        {userInfo.exp_date
+                          ? new Date(parseInt(userInfo.exp_date, 10) * 1000).toLocaleDateString("tr-TR")
+                          : "Süresiz"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {profiles.map((profile) => {
                 const isActive = activeProfile?.id === profile.id;
                 const isTestingThis = isTesting && testResult?.profileId === profile.id;

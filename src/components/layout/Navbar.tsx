@@ -174,12 +174,32 @@ export function Navbar() {
                 <Sparkles className="w-2.5 h-2.5" />
                 Demo
               </span>
-            ) : expDateString ? (
-              <span className="text-[11px] text-zinc-400 border-l border-zinc-700 pl-2 flex items-center gap-1">
-                <Clock className="w-3 h-3 text-emerald-400" />
-                {expDateString}
-              </span>
-            ) : null}
+            ) : (
+              <>
+                {userInfo?.max_connections && (
+                  <span
+                    className="hidden lg:flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 border border-zinc-700/60 text-zinc-300 font-mono ml-1"
+                    title={`Hat Durumu: ${userInfo.active_cons || 0} / ${userInfo.max_connections} bağlantı aktif`}
+                  >
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full ${
+                        parseInt(userInfo.active_cons || "0", 10) >= parseInt(userInfo.max_connections || "1", 10)
+                          ? "bg-amber-400 animate-pulse"
+                          : "bg-emerald-400"
+                      }`}
+                    />
+                    <span>{userInfo.active_cons || 0}/{userInfo.max_connections}</span>
+                  </span>
+                )}
+
+                {expDateString && (
+                  <span className="text-[11px] text-zinc-400 border-l border-zinc-700 pl-2 flex items-center gap-1">
+                    <Clock className="w-3 h-3 text-emerald-400" />
+                    {expDateString}
+                  </span>
+                )}
+              </>
+            )}
           </button>
 
           {/* Logout */}

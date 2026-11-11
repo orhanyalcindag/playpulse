@@ -15,6 +15,8 @@ import {
   Film,
   User,
   Users,
+  Volume2,
+  Tv,
 } from "lucide-react";
 import { formatSecondsToTime } from "@/lib/utils";
 
@@ -76,6 +78,16 @@ export function MovieDetailModal({ movie, onClose }: MovieDetailModalProps) {
 
   const posterImg = vodInfo?.info?.movie_image || movie.stream_icon;
   const rating = vodInfo?.info?.rating || movie.rating;
+
+  // Technical video/audio badge helpers
+  const videoWidth = vodInfo?.info?.video?.width;
+  const is4K = (videoWidth && videoWidth >= 3840) || movie.name.toLowerCase().includes("4k") || movie.name.toLowerCase().includes("uhd");
+  const isFHD = !is4K && ((videoWidth && videoWidth >= 1920) || movie.name.toLowerCase().includes("1080") || movie.name.toLowerCase().includes("fhd"));
+  const audioCodec = vodInfo?.info?.audio?.codec_name?.toUpperCase();
+  const audioChannels = vodInfo?.info?.audio?.channels;
+  const isSurround = audioChannels && audioChannels >= 6;
+  const audioLang = vodInfo?.info?.audio?.tags?.language || vodInfo?.info?.audio?.tags?.title;
+  const isTurkish = audioLang?.toLowerCase().includes("tur") || movie.name.toLowerCase().includes("türkçe") || movie.name.toLowerCase().includes("turkce") || movie.name.toLowerCase().includes("dublaj");
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md animate-fade-in overflow-y-auto">
@@ -196,6 +208,34 @@ export function MovieDetailModal({ movie, onClose }: MovieDetailModalProps) {
                 {vodInfo?.info?.genre && (
                   <span className="px-2.5 py-1 rounded-lg bg-zinc-800 text-zinc-300 border border-zinc-700/50">
                     {vodInfo.info.genre}
+                  </span>
+                )}
+
+                {/* Technical Quality Badges */}
+                {is4K ? (
+                  <span className="px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-400 border border-amber-500/40 font-black text-[10px] tracking-wider uppercase">
+                    4K Ultra HD
+                  </span>
+                ) : isFHD ? (
+                  <span className="px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-400 border border-indigo-500/40 font-black text-[10px] tracking-wider uppercase">
+                    1080p Full HD
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded-md bg-zinc-700/50 text-zinc-300 border border-zinc-600/50 font-bold text-[10px] tracking-wider uppercase">
+                    HD
+                  </span>
+                )}
+
+                {isTurkish && (
+                  <span className="px-2 py-0.5 rounded-md bg-rose-600/20 text-rose-300 border border-rose-500/30 font-bold text-[10px] tracking-wide">
+                    Türkçe Dublaj
+                  </span>
+                )}
+
+                {audioCodec && (
+                  <span className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/5 text-zinc-300 border border-white/10 font-bold text-[10px]">
+                    <Volume2 className="w-3 h-3 text-brand" />
+                    <span>{isSurround ? "5.1 " : ""}{audioCodec}</span>
                   </span>
                 )}
               </div>

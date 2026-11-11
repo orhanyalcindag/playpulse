@@ -71,12 +71,22 @@ export function SearchModal() {
 
   const matchingMovies = useMemo(() => {
     if (!cleanQuery) return [];
-    return movieList.filter((m) => m.name.toLowerCase().includes(cleanQuery)).slice(0, 6);
+    return movieList
+      .filter((m) => m.name.toLowerCase().includes(cleanQuery))
+      .slice(0, 10);
   }, [movieList, cleanQuery]);
 
   const matchingSeries = useMemo(() => {
     if (!cleanQuery) return [];
-    return seriesList.filter((s) => s.name.toLowerCase().includes(cleanQuery)).slice(0, 6);
+    return seriesList
+      .filter((s) => {
+        const titleMatch = s.name.toLowerCase().includes(cleanQuery);
+        const castMatch = s.cast && s.cast.toLowerCase().includes(cleanQuery);
+        const directorMatch = s.director && s.director.toLowerCase().includes(cleanQuery);
+        const genreMatch = s.genre && s.genre.toLowerCase().includes(cleanQuery);
+        return titleMatch || castMatch || directorMatch || genreMatch;
+      })
+      .slice(0, 10);
   }, [seriesList, cleanQuery]);
 
   const totalResults = matchingLive.length + matchingMovies.length + matchingSeries.length;
@@ -262,7 +272,19 @@ export function SearchModal() {
                             <span className="text-xs sm:text-sm font-semibold text-zinc-200 truncate block">
                               {series.name}
                             </span>
-                            <span className="text-[11px] text-zinc-500">Dizi</span>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <span className="text-[10px] text-zinc-500">Dizi</span>
+                              {series.cast && series.cast.toLowerCase().includes(cleanQuery) && (
+                                <span className="text-[9px] text-brand font-semibold bg-brand/10 px-1 rounded truncate max-w-[130px]">
+                                  Oyuncu: {series.cast}
+                                </span>
+                              )}
+                              {series.director && series.director.toLowerCase().includes(cleanQuery) && (
+                                <span className="text-[9px] text-indigo-400 font-semibold bg-indigo-500/10 px-1 rounded truncate max-w-[130px]">
+                                  Yönetmen: {series.director}
+                                </span>
+                              )}
+                            </div>
                           </div>
                           <span className="text-xs text-brand font-medium">Bölümler</span>
                         </div>

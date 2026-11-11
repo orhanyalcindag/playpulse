@@ -129,6 +129,21 @@ export interface VodInfo {
     cast?: string;
     backdrop_path?: string[];
     youtube_trailer?: string;
+    video?: {
+      codec_name?: string;
+      width?: number;
+      height?: number;
+      bitrate?: number | string;
+    };
+    audio?: {
+      codec_name?: string;
+      channels?: number;
+      tags?: {
+        language?: string;
+        title?: string;
+      };
+    };
+    bitrate?: number | string;
   };
   movie_data: {
     stream_id: number;

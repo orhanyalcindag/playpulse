@@ -14,6 +14,7 @@ import {
   Clapperboard,
   Loader2,
   Tv,
+  Calendar,
 } from "lucide-react";
 
 interface SeriesDetailModalProps {
@@ -247,6 +248,17 @@ export function SeriesDetailModal({ series, onClose }: SeriesDetailModalProps) {
                     {seriesInfo.seasons.length} Sezon
                   </span>
                 )}
+
+                {series.releaseDate && (
+                  <span className="flex items-center gap-1 bg-zinc-800/80 px-2.5 py-1 rounded-lg text-zinc-300 border border-zinc-700/50">
+                    <Calendar className="w-3.5 h-3.5 text-zinc-400" />
+                    {series.releaseDate.slice(0, 4)}
+                  </span>
+                )}
+
+                <span className="px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-400 border border-indigo-500/40 font-black text-[10px] tracking-wider uppercase">
+                  1080p FHD
+                </span>
               </div>
 
               {/* Description / Plot */}

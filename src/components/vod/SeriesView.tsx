@@ -14,6 +14,7 @@ import {
   ChevronDown,
   Info,
   Lock,
+  ArrowUpDown,
 } from "lucide-react";
 import { SeriesDetailModal } from "./SeriesDetailModal";
 import { CategorySelector } from "@/components/ui/CategorySelector";
@@ -41,6 +42,7 @@ export function SeriesView() {
   const [isLoadingSeries, setIsLoadingSeries] = useState<boolean>(true);
   const [selectedSeries, setSelectedSeries] = useState<SeriesItem | null>(null);
   const [loadingSeriesId, setLoadingSeriesId] = useState<number | null>(null);
+  const [sortBy, setSortBy] = useState<"default" | "rating-desc" | "added-desc" | "year-desc" | "title-asc">("default");
 
   // Load Categories
   useEffect(() => {
@@ -107,9 +109,45 @@ export function SeriesView() {
     return seriesList.filter((s) => s.name.toLowerCase().includes(q));
   }, [seriesList, searchQuery]);
 
+  // Sort series
+  const sortedSeries = useMemo(() => {
+    if (sortBy === "default") return filteredSeries;
+    const list = [...filteredSeries];
+
+    const extractYear = (name: string): number => {
+      const match = name.match(/\b(19\d\d|20\d\d)\b/);
+      return match ? parseInt(match[1], 10) : 0;
+    };
+
+    switch (sortBy) {
+      case "rating-desc":
+        return list.sort((a, b) => {
+          const rA = parseFloat(String(a.rating || 0)) || 0;
+          const rB = parseFloat(String(b.rating || 0)) || 0;
+          return rB - rA;
+        });
+      case "added-desc":
+        return list.sort((a, b) => {
+          const tA = parseInt(String(a.last_modified || 0), 10) || 0;
+          const tB = parseInt(String(b.last_modified || 0), 10) || 0;
+          return tB - tA;
+        });
+      case "year-desc":
+        return list.sort((a, b) => {
+          const yA = a.releaseDate ? parseInt(a.releaseDate.slice(0, 4), 10) || extractYear(a.name) : extractYear(a.name);
+          const yB = b.releaseDate ? parseInt(b.releaseDate.slice(0, 4), 10) || extractYear(b.name) : extractYear(b.name);
+          return yB - yA;
+        });
+      case "title-asc":
+        return list.sort((a, b) => a.name.localeCompare(b.name, "tr"));
+      default:
+        return list;
+    }
+  }, [filteredSeries, sortBy]);
+
   const displayedSeries = useMemo(() => {
-    return filteredSeries.slice(0, visibleCount);
-  }, [filteredSeries, visibleCount]);
+    return sortedSeries.slice(0, visibleCount);
+  }, [sortedSeries, visibleCount]);
 
   const handleLoadMore = () => {
     setVisibleCount((prev) => Math.min(prev + PAGE_SIZE, filteredSeries.length));
@@ -210,26 +248,46 @@ export function SeriesView() {
           </p>
         </div>
 
-        {/* Search Bar */}
-        <div className="relative w-full md:w-80">
-          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-zinc-400">
-            <Search className="w-4 h-4" />
-          </div>
-          <input
-            type="text"
-            placeholder="Dizi adı ara..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-dark-elevated border border-dark-border rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery("")}
-              className="absolute inset-y-0 right-0 pr-3 flex items-center text-xs text-zinc-400 hover:text-white"
+        {/* Right Controls: Sort & Search */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full md:w-auto">
+          {/* Sort Dropdown */}
+          <div className="relative">
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as any)}
+              className="w-full sm:w-auto px-3.5 py-2 bg-dark-elevated border border-dark-border hover:border-brand/40 rounded-xl text-xs sm:text-sm font-semibold text-zinc-200 focus:outline-none focus:border-brand cursor-pointer transition-all appearance-none pr-9 shadow-sm"
+              title="Dizileri sırala"
             >
-              Temizle
-            </button>
-          )}
+              <option value="default" className="bg-zinc-900 text-white">Varsayılan Sıralama</option>
+              <option value="rating-desc" className="bg-zinc-900 text-white">⭐ En Yüksek IMDB</option>
+              <option value="added-desc" className="bg-zinc-900 text-white">🆕 En Yeni Eklenenler</option>
+              <option value="year-desc" className="bg-zinc-900 text-white">📅 Çıkış Yılına Göre</option>
+              <option value="title-asc" className="bg-zinc-900 text-white">🔤 A'dan Z'ye</option>
+            </select>
+            <ArrowUpDown className="w-3.5 h-3.5 text-brand absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          </div>
+
+          {/* Search Bar */}
+          <div className="relative w-full sm:w-72">
+            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-zinc-400">
+              <Search className="w-4 h-4" />
+            </div>
+            <input
+              type="text"
+              placeholder="Dizi adı veya tür ara..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 bg-dark-elevated border border-dark-border rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all shadow-sm"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-xs text-zinc-400 hover:text-white"
+              >
+                Temizle
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
