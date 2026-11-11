@@ -269,13 +269,11 @@ export function HomeView() {
               {trendingMovies.map((movie) => (
                 <div
                   key={movie.stream_id}
-                  className="group relative flex-none w-[140px] sm:w-[170px] bg-dark-surface rounded-2xl overflow-hidden border border-white/5 hover:border-brand/40 transition-all duration-300 hover:-translate-y-1.5 shadow-md flex flex-col select-none"
+                  onClick={() => setSelectedMovie(movie)}
+                  className="group relative flex-none w-[140px] sm:w-[170px] bg-dark-surface rounded-2xl overflow-hidden border border-white/5 hover:border-brand/40 transition-all duration-300 hover:-translate-y-1.5 shadow-md flex flex-col select-none cursor-pointer"
                 >
-                  {/* Poster Area: Clicking immediately plays the movie */}
-                  <div
-                    onClick={(e) => handleDirectPlayMovie(movie, e)}
-                    className="relative aspect-[2/3] w-full bg-zinc-900 overflow-hidden cursor-pointer"
-                  >
+                  {/* Poster Area: Clicking opens Movie Details modal */}
+                  <div className="relative aspect-[2/3] w-full bg-zinc-900 overflow-hidden">
                     {movie.stream_icon ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -293,9 +291,9 @@ export function HomeView() {
 
                     <div className="absolute inset-0 bg-gradient-to-t from-dark-surface via-transparent to-transparent opacity-80" />
 
-                    {/* Red Hover Play Button in Center */}
+                    {/* Hover Info/Play Button in Center */}
                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none">
-                      <div className="w-11 h-11 rounded-full bg-brand text-white flex items-center justify-center shadow-xl shadow-brand/60 group-hover:scale-110 active:scale-95 transition-all">
+                      <div className="w-11 h-11 rounded-full bg-brand/90 text-white flex items-center justify-center shadow-xl shadow-brand/60 group-hover:scale-110 active:scale-95 transition-all">
                         <Play className="w-5 h-5 fill-white ml-0.5" />
                       </div>
                     </div>
@@ -308,24 +306,11 @@ export function HomeView() {
                     )}
                   </div>
 
-                  {/* Card Info & Detail Trigger */}
+                  {/* Card Info */}
                   <div className="p-2.5 flex items-center justify-between gap-1.5 bg-dark-surface">
-                    <h3
-                      onClick={(e) => handleDirectPlayMovie(movie, e)}
-                      className="text-xs font-semibold text-zinc-100 group-hover:text-brand truncate cursor-pointer flex-1"
-                    >
+                    <h3 className="text-xs font-semibold text-zinc-100 group-hover:text-brand truncate flex-1">
                       {movie.name}
                     </h3>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedMovie(movie);
-                      }}
-                      className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all cursor-pointer"
-                      title="Film Detayları"
-                    >
-                      <Info className="w-3.5 h-3.5" />
-                    </button>
                   </div>
                 </div>
               ))}
@@ -353,88 +338,54 @@ export function HomeView() {
             </div>
 
             <div className="flex gap-4 overflow-x-auto no-scrollbar py-2">
-              {trendingSeries.map((series) => {
-                const isLoadingThis = loadingSeriesId === series.series_id;
-
-                return (
-                  <div
-                    key={series.series_id}
-                    className="group relative flex-none w-[140px] sm:w-[170px] bg-dark-surface rounded-2xl overflow-hidden border border-white/5 hover:border-brand/40 transition-all duration-300 hover:-translate-y-1.5 shadow-md flex flex-col select-none"
-                  >
-                    {/* Poster Area: Clicking directly plays episode 1 */}
-                    <div
-                      onClick={(e) => handleDirectPlaySeries(series, e)}
-                      className="relative aspect-[2/3] w-full bg-zinc-900 overflow-hidden cursor-pointer"
-                    >
-                      {series.cover ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={series.cover}
-                          alt={series.name}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                          loading="lazy"
-                          onError={(e) => {
-                            (e.target as HTMLElement).style.display = "none";
-                          }}
-                        />
-                      ) : (
-                        <Clapperboard className="w-8 h-8 text-zinc-700 m-auto mt-12" />
-                      )}
-
-                      <div className="absolute inset-0 bg-gradient-to-t from-dark-surface via-transparent to-transparent opacity-80" />
-
-                      {/* Red Hover Play Button in Center or Loading Spinner */}
-                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none">
-                        {isLoadingThis ? (
-                          <div className="w-11 h-11 rounded-full bg-brand text-white flex items-center justify-center shadow-xl shadow-brand/60">
-                            <Loader2 className="w-5 h-5 animate-spin" />
-                          </div>
-                        ) : (
-                          <div className="w-11 h-11 rounded-full bg-brand text-white flex items-center justify-center shadow-xl shadow-brand/60 group-hover:scale-110 active:scale-95 transition-all">
-                            <Play className="w-5 h-5 fill-white ml-0.5" />
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Loading Badge */}
-                      {isLoadingThis && (
-                        <div className="absolute inset-x-0 bottom-3 px-2 flex justify-center">
-                          <span className="px-2 py-0.5 rounded-full bg-black/85 text-[10px] text-brand font-bold animate-pulse border border-brand/40 shadow-lg">
-                            Bölüm 1 Hazırlanıyor...
-                          </span>
-                        </div>
-                      )}
-
-                      {series.rating && (
-                        <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-black/70 text-[10px] font-bold text-amber-400 flex items-center gap-1">
-                          <Star className="w-3 h-3 fill-amber-400" />
-                          {series.rating}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Card Info & Detail Trigger */}
-                    <div className="p-2.5 flex items-center justify-between gap-1.5 bg-dark-surface">
-                      <h3
-                        onClick={(e) => handleDirectPlaySeries(series, e)}
-                        className="text-xs font-semibold text-zinc-100 group-hover:text-brand truncate cursor-pointer flex-1"
-                      >
-                        {series.name}
-                      </h3>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedSeries(series);
+              {trendingSeries.map((series) => (
+                <div
+                  key={series.series_id}
+                  onClick={() => setSelectedSeries(series)}
+                  className="group relative flex-none w-[140px] sm:w-[170px] bg-dark-surface rounded-2xl overflow-hidden border border-white/5 hover:border-brand/40 transition-all duration-300 hover:-translate-y-1.5 shadow-md flex flex-col select-none cursor-pointer"
+                >
+                  {/* Poster Area: Clicking opens Series Details & Episode List modal */}
+                  <div className="relative aspect-[2/3] w-full bg-zinc-900 overflow-hidden">
+                    {series.cover ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={series.cover}
+                        alt={series.name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        loading="lazy"
+                        onError={(e) => {
+                          (e.target as HTMLElement).style.display = "none";
                         }}
-                        className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all cursor-pointer text-[10px] flex items-center gap-0.5"
-                        title="Bölümleri Gör"
-                      >
-                        <Info className="w-3.5 h-3.5" />
-                      </button>
+                      />
+                    ) : (
+                      <Clapperboard className="w-8 h-8 text-zinc-700 m-auto mt-12" />
+                    )}
+
+                    <div className="absolute inset-0 bg-gradient-to-t from-dark-surface via-transparent to-transparent opacity-80" />
+
+                    {/* Red Hover Play/Episodes Button in Center */}
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none">
+                      <div className="w-11 h-11 rounded-full bg-brand/90 text-white flex items-center justify-center shadow-xl shadow-brand/60 group-hover:scale-110 active:scale-95 transition-all">
+                        <Clapperboard className="w-5 h-5 text-white" />
+                      </div>
                     </div>
+
+                    {series.rating && (
+                      <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-black/70 text-[10px] font-bold text-amber-400 flex items-center gap-1">
+                        <Star className="w-3 h-3 fill-amber-400" />
+                        {series.rating}
+                      </div>
+                    )}
                   </div>
-                );
-              })}
+
+                  {/* Card Info */}
+                  <div className="p-2.5 flex items-center justify-between gap-1.5 bg-dark-surface">
+                    <h3 className="text-xs font-semibold text-zinc-100 group-hover:text-brand truncate flex-1">
+                      {series.name}
+                    </h3>
+                  </div>
+                </div>
+              ))}
             </div>
           </section>
         )}

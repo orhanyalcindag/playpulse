@@ -202,9 +202,9 @@ export function MoviesView() {
                   key={movie.stream_id}
                   className="group relative bg-dark-surface hover:bg-dark-elevated rounded-2xl overflow-hidden border border-white/5 hover:border-brand/50 transition-all duration-300 shadow-sm hover:shadow-xl hover:shadow-brand/20 hover:-translate-y-1.5 flex flex-col select-none"
                 >
-                  {/* Poster Area - Clicking anywhere on the poster directly plays the movie */}
+                  {/* Poster Area - Clicking anywhere opens Movie Details modal */}
                   <div
-                    onClick={(e) => handleDirectPlay(movie, e)}
+                    onClick={() => setSelectedMovie(movie)}
                     className="relative aspect-[2/3] w-full bg-zinc-900 overflow-hidden cursor-pointer"
                   >
                     {movie.stream_icon ? (
@@ -277,21 +277,21 @@ export function MoviesView() {
                   {/* Movie Title & Info Bottom Bar */}
                   <div className="p-3 flex-1 flex flex-col justify-between">
                     <h3
-                      onClick={(e) => handleDirectPlay(movie, e)}
+                      onClick={() => setSelectedMovie(movie)}
                       className="text-xs sm:text-sm font-semibold text-zinc-100 hover:text-brand line-clamp-1 transition-colors cursor-pointer"
                     >
                       {movie.name}
                     </h3>
 
                     <div className="flex items-center justify-between text-[11px] text-zinc-400 mt-2 pt-1 border-t border-white/5">
-                      {/* Left: Quick Play text */}
+                      {/* Left: Details text */}
                       <button
                         type="button"
-                        onClick={(e) => handleDirectPlay(movie, e)}
+                        onClick={() => setSelectedMovie(movie)}
                         className="text-brand font-semibold hover:underline flex items-center gap-1 cursor-pointer"
                       >
-                        <Play className="w-3 h-3 fill-brand" />
-                        <span>Oynat</span>
+                        <Info className="w-3.5 h-3.5 text-brand" />
+                        <span>Detay & İzle</span>
                       </button>
 
                       {/* Right: Info / Details Button */}
