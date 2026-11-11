@@ -28,7 +28,7 @@ interface MoodFilterChipsProps {
 export function MoodFilterChips({ selectedMood, onSelectMood }: MoodFilterChipsProps) {
   return (
     <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6 sm:mb-8">
-      <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
+      <div className="flex items-center gap-2 overflow-x-auto sm:flex-wrap pb-2 no-scrollbar">
         {MOOD_FILTERS.map((filter) => {
           const isSelected = selectedMood === filter.id;
           return (

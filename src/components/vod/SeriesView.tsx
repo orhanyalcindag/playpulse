@@ -16,6 +16,7 @@ import {
   Lock,
 } from "lucide-react";
 import { SeriesDetailModal } from "./SeriesDetailModal";
+import { CategorySelector } from "@/components/ui/CategorySelector";
 
 const PAGE_SIZE = 20;
 
@@ -232,41 +233,15 @@ export function SeriesView() {
         </div>
       </div>
 
-      {/* Horizontal Category Chips */}
-      <div className="mb-6">
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
-          <button
-            onClick={() => handleSelectCategory("all")}
-            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
-              selectedCategoryId === "all"
-                ? "bg-brand text-white shadow-md shadow-brand/40"
-                : "bg-dark-elevated text-zinc-300 hover:bg-zinc-800 border border-dark-border"
-            }`}
-          >
-            <Clapperboard className="w-3.5 h-3.5" />
-            Tüm Diziler
-          </button>
-
-          {availableCategories.map((cat) => {
-            const isSelected = selectedCategoryId === cat.category_id;
-            const isAdult = isAdultCategory(cat.category_name);
-            return (
-              <button
-                key={cat.category_id}
-                onClick={() => handleSelectCategory(cat.category_id, cat.category_name)}
-                className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-medium whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
-                  isSelected
-                    ? "bg-brand text-white shadow-md shadow-brand/40"
-                    : "bg-dark-elevated text-zinc-300 hover:bg-zinc-800 border border-dark-border"
-                }`}
-              >
-                {isAdult && <Lock className="w-3 h-3 text-rose-400" />}
-                <span>{cleanCategoryName(cat.category_name)}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      {/* Modern Netflix-Style Category Selector */}
+      <CategorySelector
+        categories={availableCategories}
+        selectedCategoryId={selectedCategoryId}
+        onSelectCategory={handleSelectCategory}
+        allLabel="Tüm Diziler"
+        allIcon={<Clapperboard className="w-3.5 h-3.5" />}
+        isAdultCategory={isAdultCategory}
+      />
 
       {/* Series Grid */}
       {isLoadingSeries ? (
