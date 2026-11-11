@@ -93,6 +93,10 @@ export function VideoPlayerModal() {
   const [hlsSubtitleTracks, setHlsSubtitleTracks] = useState<SubtitleTrackOption[]>([]);
   const [activeSubtitleTrack, setActiveSubtitleTrack] = useState<string>("none");
 
+  // Audio compatibility mode for movies & series (AC3 to AAC real-time conversion)
+  const [audioMode, setAudioMode] = useState<"aac" | "direct">("aac");
+  const seekOffsetRef = useRef<number>(0);
+
   // Custom uploaded subtitle
   const [customSubtitleName, setCustomSubtitleName] = useState<string | null>(null);
   const [customCues, setCustomCues] = useState<SubtitleCue[]>([]);
@@ -211,14 +215,28 @@ export function VideoPlayerModal() {
         }
       });
     } else {
-      // Direct stream (MP4, MKV, TS, Safari Native HLS)
-      video.src = streamUrl;
+      // Direct or AAC-Transcoded stream (MP4, MKV, TS, Safari Native HLS)
+      const isVod = playingMedia.type !== "live" && !streamUrl.includes(".m3u8");
+      let startOffset = 0;
+      if (savedProgress && savedProgress.currentTime > 5 && savedProgress.progressPercentage < 95) {
+        startOffset = Math.floor(savedProgress.currentTime);
+      }
+      seekOffsetRef.current = isVod && audioMode === "aac" ? startOffset : 0;
+
+      let finalSrc = streamUrl;
+      if (isVod && audioMode === "aac") {
+        finalSrc = `/api/stream?url=${encodeURIComponent(streamUrl)}${startOffset > 0 ? `&seek=${startOffset}` : ""}`;
+      }
+
+      video.src = finalSrc;
       video.load();
 
       const startPlayback = () => {
         setIsBuffering(false);
         if (savedProgress && savedProgress.currentTime > 5 && savedProgress.progressPercentage < 95) {
-          video.currentTime = savedProgress.currentTime;
+          if (!isVod || audioMode !== "aac") {
+            video.currentTime = savedProgress.currentTime;
+          }
         }
         const promise = video.play();
         if (promise !== undefined) {
@@ -247,7 +265,7 @@ export function VideoPlayerModal() {
         if (err) {
           if (err.code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED) {
             msg =
-              "Bu içerik formatı (MKV/AC3) tarayıcınız tarafından doğrudan desteklenmiyor. Aşağıdaki butonla bağlantıyı kopyalayarak VLC Player veya harici oynatıcıda izleyebilirsiniz.";
+              "Bu içerik formatı (MKV/AC3) tarayıcınız tarafından doğrudan desteklenmiyor. Lütfen player altındaki 'AAC Ses' modunu açık tutun veya harici VLC Player ile izleyin.";
           } else if (err.code === MediaError.MEDIA_ERR_NETWORK) {
             msg = "Ağ bağlantı hatası: Sunucu yayını yanıt vermedi.";
           }
@@ -272,7 +290,7 @@ export function VideoPlayerModal() {
         hlsRef.current = null;
       }
     };
-  }, [playingMedia]);
+  }, [playingMedia, audioMode]);
 
   // Handle Controls Timeout on mouse movement
   const resetControlsTimeout = useCallback(() => {
@@ -295,11 +313,15 @@ export function VideoPlayerModal() {
   // Video Events
   const handleTimeUpdate = () => {
     if (!videoRef.current || !playingMedia) return;
-    const current = videoRef.current.currentTime;
-    const total = videoRef.current.duration || 0;
+    const isVodAac = audioMode === "aac" && playingMedia.type !== "live" && !playingMedia.streamUrl.includes(".m3u8");
+    const current = isVodAac ? seekOffsetRef.current + videoRef.current.currentTime : videoRef.current.currentTime;
+    const rawDur = videoRef.current.duration;
+    const total = isFinite(rawDur) && rawDur > 0 ? rawDur : (duration || savedProgress?.duration || 0);
 
     setCurrentTime(current);
-    setDuration(total);
+    if (total > 0 && total !== duration) {
+      setDuration(total);
+    }
 
     // Save progress every 4 seconds for movies and series
     const now = Date.now();
@@ -354,11 +376,23 @@ export function VideoPlayerModal() {
   };
 
   const handleSkip = (seconds: number) => {
-    if (!videoRef.current) return;
-    videoRef.current.currentTime = Math.max(
-      0,
-      Math.min(duration, videoRef.current.currentTime + seconds)
-    );
+    if (!videoRef.current || !playingMedia) return;
+    const isVodAac = audioMode === "aac" && playingMedia.type !== "live" && !playingMedia.streamUrl.includes(".m3u8");
+    const target = Math.max(0, Math.min(duration || 999999, currentTime + seconds));
+
+    if (isVodAac) {
+      const seekSec = Math.floor(target);
+      seekOffsetRef.current = seekSec;
+      setCurrentTime(target);
+      setIsBuffering(true);
+      const raw = playingMedia.streamUrl;
+      videoRef.current.src = `/api/stream?url=${encodeURIComponent(raw)}&seek=${seekSec}`;
+      videoRef.current.load();
+      videoRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
+    } else {
+      videoRef.current.currentTime = target;
+      setCurrentTime(target);
+    }
     resetControlsTimeout();
   };
 
@@ -369,11 +403,28 @@ export function VideoPlayerModal() {
   };
 
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!videoRef.current) return;
+    if (!videoRef.current || !playingMedia) return;
     const targetTime = parseFloat(e.target.value);
-    videoRef.current.currentTime = targetTime;
-    setCurrentTime(targetTime);
+    const isVodAac = audioMode === "aac" && playingMedia.type !== "live" && !playingMedia.streamUrl.includes(".m3u8");
+
+    if (isVodAac) {
+      const seekSec = Math.floor(targetTime);
+      seekOffsetRef.current = seekSec;
+      setCurrentTime(targetTime);
+      setIsBuffering(true);
+      const raw = playingMedia.streamUrl;
+      videoRef.current.src = `/api/stream?url=${encodeURIComponent(raw)}&seek=${seekSec}`;
+      videoRef.current.load();
+      videoRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
+    } else {
+      videoRef.current.currentTime = targetTime;
+      setCurrentTime(targetTime);
+    }
     resetControlsTimeout();
+  };
+
+  const toggleAudioMode = () => {
+    setAudioMode((prev) => (prev === "aac" ? "direct" : "aac"));
   };
 
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1059,6 +1110,28 @@ export function VideoPlayerModal() {
               </button>
             )}
 
+            {/* Audio Transcode Pill for Movies & Series */}
+            {!isLive && (
+              <button
+                onClick={toggleAudioMode}
+                className={`p-2 sm:px-3 sm:py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                  audioMode === "aac"
+                    ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-300 hover:bg-emerald-500/30 shadow-sm"
+                    : "bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 hover:text-white border-white/10"
+                }`}
+                title={
+                  audioMode === "aac"
+                    ? "AAC Ses Çözücü Aktif (Tarayıcı uyumlu ses açık). Doğrudan akışa geçmek için tıklayın."
+                    : "Doğrudan Akış Aktif. Ses gelmiyorsa AAC Çözücüyü açmak için tıklayın."
+                }
+              >
+                <Volume2 className={`w-4 h-4 ${audioMode === "aac" ? "text-emerald-400" : ""}`} />
+                <span className="hidden sm:inline">
+                  {audioMode === "aac" ? "AAC Ses" : "Doğrudan"}
+                </span>
+              </button>
+            )}
+
             {/* Audio & Subtitles Trigger */}
             <button
               onClick={() => setIsSubtitleModalOpen(true)}
@@ -1145,6 +1218,10 @@ export function VideoPlayerModal() {
         onRemoveCustomSubtitle={handleRemoveCustomSubtitle}
         settings={subtitleSettings}
         onUpdateSettings={handleUpdateSubtitleSettings}
+        audioMode={audioMode}
+        onChangeAudioMode={setAudioMode}
+        streamUrl={playingMedia.streamUrl}
+        mediaType={playingMedia.type}
       />
 
       {/* In-Player Episodes Drawer */}

@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   X,
   Volume2,
@@ -13,6 +14,9 @@ import {
   Minus,
   FileText,
   Trash2,
+  Sparkles,
+  ExternalLink,
+  Copy,
 } from "lucide-react";
 import { SubtitleSettings, parseSubtitleContent, SubtitleCue } from "@/lib/subtitles";
 
@@ -47,6 +51,11 @@ interface SubtitleAudioModalProps {
   // Subtitle settings
   settings: SubtitleSettings;
   onUpdateSettings: (newSettings: Partial<SubtitleSettings>) => void;
+  // Audio Mode & External Player
+  audioMode?: "aac" | "direct";
+  onChangeAudioMode?: (mode: "aac" | "direct") => void;
+  streamUrl?: string;
+  mediaType?: "live" | "movie" | "series";
 }
 
 export function SubtitleAudioModal({
@@ -63,11 +72,19 @@ export function SubtitleAudioModal({
   onRemoveCustomSubtitle,
   settings,
   onUpdateSettings,
+  audioMode = "aac",
+  onChangeAudioMode,
+  streamUrl,
+  mediaType,
 }: SubtitleAudioModalProps) {
   const [activeTab, setActiveTab] = useState<"tracks" | "settings">("tracks");
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -95,7 +112,9 @@ export function SubtitleAudioModal({
     onUpdateSettings({ offset: clamped });
   };
 
-  return (
+  if (!isOpen || !mounted || typeof document === "undefined") return null;
+
+  const modalContent = (
     <div
       onClick={onClose}
       className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in"
@@ -186,6 +205,89 @@ export function SubtitleAudioModal({
                     })
                   )}
                 </div>
+
+                {/* Audio Transcode Compatibility Mode (Fixes AC-3 silence in browsers) */}
+                {mediaType !== "live" && onChangeAudioMode && (
+                  <div className="pt-3 border-t border-white/5 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-zinc-300 flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                        <span>Ses Çözücü Uyumluluğu</span>
+                      </span>
+                      {audioMode === "aac" && (
+                        <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                          Ses Aktif (AAC)
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-zinc-400 leading-relaxed">
+                      Filmlerde ses gelmiyorsa (Dolby AC-3 tarayıcı kısıtı), <strong>AAC Çözücü</strong> modunu kullanın.
+                    </p>
+
+                    <div className="grid grid-cols-2 gap-2 pt-1">
+                      <button
+                        onClick={() => onChangeAudioMode("aac")}
+                        className={`p-2.5 rounded-xl border text-xs font-semibold text-left transition-all cursor-pointer ${
+                          audioMode === "aac"
+                            ? "bg-emerald-500/15 border-emerald-500/50 text-white shadow-sm"
+                            : "bg-zinc-900/50 hover:bg-zinc-900 border-white/5 text-zinc-400 hover:text-white"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-bold text-emerald-400">AAC Çözücü</span>
+                          {audioMode === "aac" && <Check className="w-3.5 h-3.5 text-emerald-400" />}
+                        </div>
+                        <span className="text-[10px] text-zinc-400 block line-clamp-1">Önerilen (Ses Açık)</span>
+                      </button>
+
+                      <button
+                        onClick={() => onChangeAudioMode("direct")}
+                        className={`p-2.5 rounded-xl border text-xs font-semibold text-left transition-all cursor-pointer ${
+                          audioMode === "direct"
+                            ? "bg-brand/15 border border-brand/50 text-white shadow-sm"
+                            : "bg-zinc-900/50 hover:bg-zinc-900 border-white/5 text-zinc-400 hover:text-white"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-bold">Doğrudan Akış</span>
+                          {audioMode === "direct" && <Check className="w-3.5 h-3.5 text-brand" />}
+                        </div>
+                        <span className="text-[10px] text-zinc-400 block line-clamp-1">Ham IPTV Bağlantısı</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* External Player (VLC / PotPlayer) Links */}
+                {streamUrl && (
+                  <div className="pt-3 border-t border-white/5 space-y-2">
+                    <span className="text-xs font-bold text-zinc-300 flex items-center gap-1.5">
+                      <ExternalLink className="w-3.5 h-3.5 text-brand" />
+                      <span>Harici Oynatıcı</span>
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <a
+                        href={`vlc://${streamUrl}`}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-orange-600/20 hover:bg-orange-600/30 border border-orange-500/40 text-orange-300 text-xs font-bold transition-all"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        <span>VLC ile Aç</span>
+                      </a>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(streamUrl);
+                          setCopiedLink(true);
+                          setTimeout(() => setCopiedLink(false), 2000);
+                        }}
+                        className="py-2 px-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
+                        title="Akış Bağlantısını Kopyala"
+                      >
+                        {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                        <span>{copiedLink ? "Kopyalandı!" : "Linki Kopyala"}</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Right Column: Subtitles */}
@@ -490,4 +592,6 @@ export function SubtitleAudioModal({
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 }

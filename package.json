@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "clsx": "^2.1.1",
     "hls.js": "^1.5.17",
     "lucide-react": "^0.475.0",

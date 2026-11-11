@@ -22,13 +22,17 @@ export function formatSecondsToTime(seconds: number): string {
 
 export function cleanCategoryName(name: string): string {
   if (!name) return "";
-  // Strip common noisy IPTV prefixes like "FILM:", "DIZI:", "TR | ", "4K | ", etc.
-  return (
-    name
-      .replace(
-        /^(\[.*?\]|\(.*?\)|\b(FILM|MOVIES?|D[İI]Z[İI]|SERIES|CANLI|LIVE|VOD|4K|UHD|FHD|TR|TURK|TURKEY)\b\s*[:|/-]?\s*)/gi,
-        ""
-      )
-      .trim() || name
-  );
+  let cleaned = name;
+  // Strip common noisy IPTV prefixes like "FILM:", "DIZI:", "TR | ", "[TR]", etc. iteratively
+  const prefixRegex =
+    /^(\[.*?\]|\(.*?\)|(?:FILM|MOVIES?|D[İI]Z[İI]|SERIES|CANLI|LIVE|VOD|4K|UHD|FHD)\s*[:|/\-•*~#]?\s*|(?:TR|TURK|TURKEY|ENG?|DE|FR|US|UK)\s*[:|/\-•*~#]\s*)/i;
+
+  let prev = "";
+  let iterations = 0;
+  while (cleaned !== prev && iterations < 5) {
+    prev = cleaned;
+    cleaned = cleaned.replace(prefixRegex, "").trim();
+    iterations++;
+  }
+  return cleaned || name;
 }
