@@ -14,6 +14,9 @@ const STORAGE_KEYS = {
   WATCH_PROGRESS: "playpulse_watch_progress",
   WATCHED_EPISODES: "playpulse_watched_episodes",
   LAST_TAB: "playpulse_last_tab",
+  SUBTITLE_SETTINGS: "playpulse_subtitle_settings",
+  PARENTAL_PIN: "playpulse_parental_pin",
+  KIDS_MODE: "playpulse_kids_mode",
 };
 
 export const StorageService = {
@@ -171,6 +174,64 @@ export const StorageService = {
       localStorage.setItem(STORAGE_KEYS.WATCHED_EPISODES, JSON.stringify(episodes));
     } catch (e) {
       console.error("Failed to save watched episodes", e);
+    }
+  },
+
+  // Subtitle Settings
+  getSubtitleSettings(): any {
+    if (typeof window === "undefined") return null;
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.SUBTITLE_SETTINGS);
+      return data ? JSON.parse(data) : null;
+    } catch {
+      return null;
+    }
+  },
+
+  saveSubtitleSettings(settings: any): void {
+    if (typeof window === "undefined") return;
+    try {
+      localStorage.setItem(STORAGE_KEYS.SUBTITLE_SETTINGS, JSON.stringify(settings));
+    } catch (e) {
+      console.error("Failed to save subtitle settings", e);
+    }
+  },
+
+  // Parental PIN
+  getParentalPin(): string {
+    if (typeof window === "undefined") return "0000";
+    try {
+      return localStorage.getItem(STORAGE_KEYS.PARENTAL_PIN) || "0000";
+    } catch {
+      return "0000";
+    }
+  },
+
+  saveParentalPin(pin: string): void {
+    if (typeof window === "undefined") return;
+    try {
+      localStorage.setItem(STORAGE_KEYS.PARENTAL_PIN, pin);
+    } catch (e) {
+      console.error("Failed to save parental pin", e);
+    }
+  },
+
+  // Kids Mode
+  getKidsMode(): boolean {
+    if (typeof window === "undefined") return false;
+    try {
+      return localStorage.getItem(STORAGE_KEYS.KIDS_MODE) === "true";
+    } catch {
+      return false;
+    }
+  },
+
+  saveKidsMode(enabled: boolean): void {
+    if (typeof window === "undefined") return;
+    try {
+      localStorage.setItem(STORAGE_KEYS.KIDS_MODE, enabled ? "true" : "false");
+    } catch (e) {
+      console.error("Failed to save kids mode state", e);
     }
   },
 };

@@ -13,13 +13,22 @@ import {
   Loader2,
   ChevronDown,
   Info,
+  Lock,
 } from "lucide-react";
 import { MovieDetailModal } from "./MovieDetailModal";
 
 const PAGE_SIZE = 20;
 
 export function MoviesView() {
-  const { xtreamService, isFavorite, toggleFavorite, playMedia } = useApp();
+  const {
+    xtreamService,
+    isFavorite,
+    toggleFavorite,
+    playMedia,
+    isKidsMode,
+    isAdultCategory,
+    requestPinAccess,
+  } = useApp();
 
   const [categories, setCategories] = useState<VodCategory[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>("all");
@@ -62,6 +71,26 @@ export function MoviesView() {
         setIsLoadingMovies(false);
       });
   }, [xtreamService, selectedCategoryId]);
+
+  // Filter categories for Kids Mode
+  const availableCategories = useMemo(() => {
+    if (!isKidsMode) return categories;
+    return categories.filter((cat) => !isAdultCategory(cat.category_name));
+  }, [categories, isKidsMode]);
+
+  const handleSelectCategory = (catId: string, catName?: string) => {
+    if (catId === "all") {
+      setSelectedCategoryId("all");
+      return;
+    }
+    if (catName && isAdultCategory(catName)) {
+      requestPinAccess(() => {
+        setSelectedCategoryId(catId);
+      });
+      return;
+    }
+    setSelectedCategoryId(catId);
+  };
 
   // Reset pagination on search
   useEffect(() => {
@@ -146,7 +175,7 @@ export function MoviesView() {
       <div className="mb-6">
         <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
           <button
-            onClick={() => setSelectedCategoryId("all")}
+            onClick={() => handleSelectCategory("all")}
             className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
               selectedCategoryId === "all"
                 ? "bg-brand text-white shadow-md shadow-brand/40"
@@ -157,19 +186,21 @@ export function MoviesView() {
             Tüm Filmler
           </button>
 
-          {categories.map((cat) => {
+          {availableCategories.map((cat) => {
             const isSelected = selectedCategoryId === cat.category_id;
+            const isAdult = isAdultCategory(cat.category_name);
             return (
               <button
                 key={cat.category_id}
-                onClick={() => setSelectedCategoryId(cat.category_id)}
-                className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-medium whitespace-nowrap transition-all cursor-pointer ${
+                onClick={() => handleSelectCategory(cat.category_id, cat.category_name)}
+                className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-medium whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
                   isSelected
                     ? "bg-brand text-white shadow-md shadow-brand/40"
                     : "bg-dark-elevated text-zinc-300 hover:bg-zinc-800 border border-dark-border"
                 }`}
               >
-                {cleanCategoryName(cat.category_name)}
+                {isAdult && <Lock className="w-3 h-3 text-rose-400" />}
+                <span>{cleanCategoryName(cat.category_name)}</span>
               </button>
             );
           })}

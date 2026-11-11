@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useApp } from "@/context/AppContext";
 import { HeroBanner } from "@/components/layout/HeroBanner";
 import { ContinueWatchingRow } from "@/components/continue-watching/ContinueWatchingRow";
@@ -14,16 +14,23 @@ import {
   ChevronRight,
   Info,
   Loader2,
+  Dices,
 } from "lucide-react";
 import { MovieDetailModal } from "@/components/vod/MovieDetailModal";
 import { SeriesDetailModal } from "@/components/vod/SeriesDetailModal";
+import { Top10Shelf, Top10Item } from "./Top10Shelf";
+import { SurpriseMeModal } from "./SurpriseMeModal";
+import { MoodFilterChips, MOOD_FILTERS } from "./MoodFilterChips";
 
 export function HomeView() {
-  const { xtreamService, setActiveTab, playMedia, watchProgress } = useApp();
+  const { xtreamService, setActiveTab, playMedia, watchProgress, isKidsMode, isAdultCategory } = useApp();
 
-  const [trendingMovies, setTrendingMovies] = useState<VodStream[]>([]);
-  const [trendingSeries, setTrendingSeries] = useState<SeriesItem[]>([]);
+  const [allMovies, setAllMovies] = useState<VodStream[]>([]);
+  const [allSeries, setAllSeries] = useState<SeriesItem[]>([]);
   const [topLiveChannels, setTopLiveChannels] = useState<LiveStream[]>([]);
+
+  const [selectedMood, setSelectedMood] = useState<string>("all");
+  const [isSurpriseMeOpen, setIsSurpriseMeOpen] = useState<boolean>(false);
 
   const [selectedMovie, setSelectedMovie] = useState<VodStream | null>(null);
   const [selectedSeries, setSelectedSeries] = useState<SeriesItem | null>(null);
@@ -34,19 +41,95 @@ export function HomeView() {
 
     xtreamService
       .getVodStreams()
-      .then((data) => setTrendingMovies(data.slice(0, 10)))
+      .then((data) => setAllMovies(data.slice(0, 50)))
       .catch(() => {});
 
     xtreamService
       .getSeriesList()
-      .then((data) => setTrendingSeries(data.slice(0, 10)))
+      .then((data) => setAllSeries(data.slice(0, 50)))
       .catch(() => {});
 
     xtreamService
       .getLiveStreams()
-      .then((data) => setTopLiveChannels(data.slice(0, 8)))
+      .then((data) => setTopLiveChannels(data.slice(0, 16)))
       .catch(() => {});
   }, [xtreamService]);
+
+  // Filter movies & series for Kids Mode and Mood Filter
+  const filteredMovies = useMemo(() => {
+    let list = allMovies;
+    if (isKidsMode) {
+      list = list.filter((m) => !isAdultCategory(m.name));
+    }
+    if (selectedMood !== "all") {
+      const activeFilter = MOOD_FILTERS.find((f) => f.id === selectedMood);
+      if (activeFilter && activeFilter.keywords.length > 0) {
+        list = list.filter((m) => {
+          const lower = m.name.toLowerCase();
+          return activeFilter.keywords.some((kw) => lower.includes(kw));
+        });
+      }
+    }
+    return list;
+  }, [allMovies, isKidsMode, selectedMood, isAdultCategory]);
+
+  const filteredSeries = useMemo(() => {
+    let list = allSeries;
+    if (isKidsMode) {
+      list = list.filter(
+        (s) =>
+          !isAdultCategory(s.name) &&
+          !isAdultCategory(s.genre || "") &&
+          !isAdultCategory(s.plot || "")
+      );
+    }
+    if (selectedMood !== "all") {
+      const activeFilter = MOOD_FILTERS.find((f) => f.id === selectedMood);
+      if (activeFilter && activeFilter.keywords.length > 0) {
+        list = list.filter((s) => {
+          const lower = `${s.name} ${s.genre || ""} ${s.plot || ""}`.toLowerCase();
+          return activeFilter.keywords.some((kw) => lower.includes(kw));
+        });
+      }
+    }
+    return list;
+  }, [allSeries, isKidsMode, selectedMood, isAdultCategory]);
+
+  const filteredLiveChannels = useMemo(() => {
+    if (!isKidsMode) return topLiveChannels;
+    return topLiveChannels.filter((c) => !isAdultCategory(c.name));
+  }, [topLiveChannels, isKidsMode, isAdultCategory]);
+
+  // Compute Top 10 items (combining top movies and series)
+  const top10Items: Top10Item[] = useMemo(() => {
+    const pool: Array<{ item: VodStream | SeriesItem; type: "movie" | "series"; score: number }> = [];
+
+    allMovies.slice(0, 15).forEach((m) => {
+      if (isKidsMode && isAdultCategory(m.name)) return;
+      pool.push({
+        item: m,
+        type: "movie",
+        score: parseFloat(String(m.rating || "7.5")) || 7.5,
+      });
+    });
+
+    allSeries.slice(0, 15).forEach((s) => {
+      if (isKidsMode && isAdultCategory(s.name)) return;
+      pool.push({
+        item: s,
+        type: "series",
+        score: (parseFloat(String(s.rating || "8.0")) || 8.0) + 0.2, // slight boost for series
+      });
+    });
+
+    pool.sort((a, b) => b.score - a.score);
+
+    return pool.slice(0, 10).map((entry, idx) => ({
+      rank: idx + 1,
+      item: entry.item,
+      type: entry.type,
+    }));
+  }, [allMovies, allSeries, isKidsMode, isAdultCategory]);
 
   const handlePlayLive = (stream: LiveStream) => {
     if (!xtreamService) return;
@@ -165,9 +248,15 @@ export function HomeView() {
   return (
     <div className="pb-24 animate-fade-in">
       {/* Cinematic Hero Billboard */}
-      <HeroBanner />
+      <HeroBanner onOpenSurpriseMe={() => setIsSurpriseMeOpen(true)} />
 
-      <div className="max-w-7xl mx-auto space-y-8 sm:space-y-10">
+      {/* Mood / Genre Filter Chips */}
+      <MoodFilterChips
+        selectedMood={selectedMood}
+        onSelectMood={setSelectedMood}
+      />
+
+      <div className="max-w-7xl mx-auto space-y-8 sm:space-y-12">
         {/* Mobile Quick Category Shortcuts */}
         <div className="flex md:hidden items-center justify-center gap-2 px-4 -mt-2 sm:-mt-4">
           <button
@@ -196,8 +285,19 @@ export function HomeView() {
         {/* Continue Watching shelf */}
         <ContinueWatchingRow />
 
+        {/* Netflix Iconic Top 10 Shelf */}
+        {selectedMood === "all" && top10Items.length > 0 && (
+          <Top10Shelf
+            items={top10Items}
+            onSelectMovie={(m) => setSelectedMovie(m)}
+            onSelectSeries={(s) => setSelectedSeries(s)}
+            onPlayMovie={handleDirectPlayMovie}
+            onPlaySeries={handleDirectPlaySeries}
+          />
+        )}
+
         {/* Section 1: Featured Live TV Channels */}
-        {topLiveChannels.length > 0 && (
+        {filteredLiveChannels.length > 0 && (
           <section className="px-4 sm:px-6">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
@@ -216,7 +316,7 @@ export function HomeView() {
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
-              {topLiveChannels.map((channel) => (
+              {filteredLiveChannels.slice(0, 8).map((channel) => (
                 <div
                   key={channel.stream_id}
                   onClick={() => handlePlayLive(channel)}
@@ -247,13 +347,13 @@ export function HomeView() {
         )}
 
         {/* Section 2: Trending Movies */}
-        {trendingMovies.length > 0 && (
+        {filteredMovies.length > 0 && (
           <section className="px-4 sm:px-6">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <Film className="w-5 h-5 text-brand" />
                 <h2 className="text-lg sm:text-xl font-bold text-white tracking-wide">
-                  Trend Filmler
+                  {selectedMood === "all" ? "Trend Filmler" : "Seçilen Türdeki Filmler"}
                 </h2>
               </div>
               <button
@@ -266,13 +366,12 @@ export function HomeView() {
             </div>
 
             <div className="flex gap-4 overflow-x-auto no-scrollbar py-2">
-              {trendingMovies.map((movie) => (
+              {filteredMovies.slice(0, 15).map((movie) => (
                 <div
                   key={movie.stream_id}
                   onClick={() => setSelectedMovie(movie)}
                   className="group relative flex-none w-[140px] sm:w-[170px] bg-dark-surface rounded-2xl overflow-hidden border border-white/5 hover:border-brand/40 transition-all duration-300 hover:-translate-y-1.5 shadow-md flex flex-col select-none cursor-pointer"
                 >
-                  {/* Poster Area: Clicking opens Movie Details modal */}
                   <div className="relative aspect-[2/3] w-full bg-zinc-900 overflow-hidden">
                     {movie.stream_icon ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -291,7 +390,6 @@ export function HomeView() {
 
                     <div className="absolute inset-0 bg-gradient-to-t from-dark-surface via-transparent to-transparent opacity-80" />
 
-                    {/* Hover Info/Play Button in Center */}
                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none">
                       <div className="w-11 h-11 rounded-full bg-brand/90 text-white flex items-center justify-center shadow-xl shadow-brand/60 group-hover:scale-110 active:scale-95 transition-all">
                         <Play className="w-5 h-5 fill-white ml-0.5" />
@@ -306,7 +404,6 @@ export function HomeView() {
                     )}
                   </div>
 
-                  {/* Card Info */}
                   <div className="p-2.5 flex items-center justify-between gap-1.5 bg-dark-surface">
                     <h3 className="text-xs font-semibold text-zinc-100 group-hover:text-brand truncate flex-1">
                       {movie.name}
@@ -319,13 +416,13 @@ export function HomeView() {
         )}
 
         {/* Section 3: Popular Series */}
-        {trendingSeries.length > 0 && (
+        {filteredSeries.length > 0 && (
           <section className="px-4 sm:px-6">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <Clapperboard className="w-5 h-5 text-brand" />
                 <h2 className="text-lg sm:text-xl font-bold text-white tracking-wide">
-                  Popüler Diziler & Sezonlar
+                  {selectedMood === "all" ? "Popüler Diziler & Sezonlar" : "Seçilen Türdeki Diziler"}
                 </h2>
               </div>
               <button
@@ -338,13 +435,12 @@ export function HomeView() {
             </div>
 
             <div className="flex gap-4 overflow-x-auto no-scrollbar py-2">
-              {trendingSeries.map((series) => (
+              {filteredSeries.slice(0, 15).map((series) => (
                 <div
                   key={series.series_id}
                   onClick={() => setSelectedSeries(series)}
                   className="group relative flex-none w-[140px] sm:w-[170px] bg-dark-surface rounded-2xl overflow-hidden border border-white/5 hover:border-brand/40 transition-all duration-300 hover:-translate-y-1.5 shadow-md flex flex-col select-none cursor-pointer"
                 >
-                  {/* Poster Area: Clicking opens Series Details & Episode List modal */}
                   <div className="relative aspect-[2/3] w-full bg-zinc-900 overflow-hidden">
                     {series.cover ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -363,10 +459,13 @@ export function HomeView() {
 
                     <div className="absolute inset-0 bg-gradient-to-t from-dark-surface via-transparent to-transparent opacity-80" />
 
-                    {/* Red Hover Play/Episodes Button in Center */}
                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none">
                       <div className="w-11 h-11 rounded-full bg-brand/90 text-white flex items-center justify-center shadow-xl shadow-brand/60 group-hover:scale-110 active:scale-95 transition-all">
-                        <Clapperboard className="w-5 h-5 text-white" />
+                        {loadingSeriesId === series.series_id ? (
+                          <Loader2 className="w-5 h-5 text-white animate-spin" />
+                        ) : (
+                          <Clapperboard className="w-5 h-5 text-white" />
+                        )}
                       </div>
                     </div>
 
@@ -378,7 +477,6 @@ export function HomeView() {
                     )}
                   </div>
 
-                  {/* Card Info */}
                   <div className="p-2.5 flex items-center justify-between gap-1.5 bg-dark-surface">
                     <h3 className="text-xs font-semibold text-zinc-100 group-hover:text-brand truncate flex-1">
                       {series.name}
@@ -391,6 +489,7 @@ export function HomeView() {
         )}
       </div>
 
+      {/* Modals */}
       {selectedMovie && (
         <MovieDetailModal
           movie={selectedMovie}
@@ -404,6 +503,18 @@ export function HomeView() {
           onClose={() => setSelectedSeries(null)}
         />
       )}
+
+      {/* Surprise Me Shuffle Modal */}
+      <SurpriseMeModal
+        isOpen={isSurpriseMeOpen}
+        onClose={() => setIsSurpriseMeOpen(false)}
+        movies={allMovies}
+        series={allSeries}
+        onPlayMovie={handleDirectPlayMovie}
+        onPlaySeries={handleDirectPlaySeries}
+        onSelectMovie={(m) => setSelectedMovie(m)}
+        onSelectSeries={(s) => setSelectedSeries(s)}
+      />
     </div>
   );
 }

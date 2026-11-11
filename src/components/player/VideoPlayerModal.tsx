@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import Hls from "hls.js";
 import { useApp } from "@/context/AppContext";
 import {
@@ -18,17 +18,47 @@ import {
   Copy,
   Check,
   ExternalLink,
+  Subtitles,
+  Layers,
+  Gauge,
+  PictureInPicture,
+  FastForward,
 } from "lucide-react";
 import { formatSecondsToTime } from "@/lib/utils";
 import { NextEpisodeCountdown } from "./NextEpisodeCountdown";
+import {
+  SubtitleAudioModal,
+  AudioTrackOption,
+  SubtitleTrackOption,
+} from "./SubtitleAudioModal";
+import { InPlayerEpisodesDrawer } from "./InPlayerEpisodesDrawer";
+import {
+  SubtitleCue,
+  SubtitleSettings,
+  DEFAULT_SUBTITLE_SETTINGS,
+  cuesToWebVtt,
+  createVttBlobUrl,
+} from "@/lib/subtitles";
+import { StorageService } from "@/lib/storage";
+import { EpisodeItem } from "@/types/iptv";
+
+const PLAYBACK_SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
 export function VideoPlayerModal() {
-  const { playingMedia, closePlayer, watchProgress, updateWatchProgress, playMedia } = useApp();
+  const {
+    playingMedia,
+    closePlayer,
+    watchProgress,
+    updateWatchProgress,
+    playMedia,
+    xtreamService,
+  } = useApp();
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const hlsRef = useRef<Hls | null>(null);
 
+  // Playback state
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [duration, setDuration] = useState<number>(0);
@@ -39,8 +69,42 @@ export function VideoPlayerModal() {
   const [showControls, setShowControls] = useState<boolean>(true);
   const [playbackError, setPlaybackError] = useState<string | null>(null);
   const [copiedUrl, setCopiedUrl] = useState<boolean>(false);
+  const [playbackRate, setPlaybackRate] = useState<number>(1);
+  const [showSpeedMenu, setShowSpeedMenu] = useState<boolean>(false);
+
+  // Next Episode Countdown
   const [showNextEpisodeModal, setShowNextEpisodeModal] = useState<boolean>(false);
   const [nextModalDismissed, setNextModalDismissed] = useState<boolean>(false);
+
+  // Skip Intro Toast feedback
+  const [showSkipFeedback, setShowSkipFeedback] = useState<boolean>(false);
+
+  // Double Tap Seek Ripple feedback
+  const [doubleTapRipple, setDoubleTapRipple] = useState<{
+    side: "left" | "right";
+    active: boolean;
+  } | null>(null);
+  const lastTapRef = useRef<{ time: number; x: number }>({ time: 0, x: 0 });
+
+  // Subtitle & Audio tracks state
+  const [isSubtitleModalOpen, setIsSubtitleModalOpen] = useState<boolean>(false);
+  const [audioTracks, setAudioTracks] = useState<AudioTrackOption[]>([]);
+  const [activeAudioTrack, setActiveAudioTrack] = useState<number>(0);
+  const [hlsSubtitleTracks, setHlsSubtitleTracks] = useState<SubtitleTrackOption[]>([]);
+  const [activeSubtitleTrack, setActiveSubtitleTrack] = useState<string>("none");
+
+  // Custom uploaded subtitle
+  const [customSubtitleName, setCustomSubtitleName] = useState<string | null>(null);
+  const [customCues, setCustomCues] = useState<SubtitleCue[]>([]);
+  const [nativeTrackBlobUrl, setNativeTrackBlobUrl] = useState<string | null>(null);
+
+  // Subtitle Settings (Font size, color, background, offset)
+  const [subtitleSettings, setSubtitleSettings] = useState<SubtitleSettings>(() => {
+    return StorageService.getSubtitleSettings() || DEFAULT_SUBTITLE_SETTINGS;
+  });
+
+  // In-Player Episodes Drawer
+  const [isEpisodesDrawerOpen, setIsEpisodesDrawerOpen] = useState<boolean>(false);
 
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastProgressSaveRef = useRef<number>(0);
@@ -57,8 +121,10 @@ export function VideoPlayerModal() {
     setIsBuffering(true);
     setShowNextEpisodeModal(false);
     setNextModalDismissed(false);
+    setAudioTracks([]);
+    setHlsSubtitleTracks([]);
 
-    let streamUrl = playingMedia.streamUrl;
+    const streamUrl = playingMedia.streamUrl;
 
     // Destroy existing HLS
     if (hlsRef.current) {
@@ -84,15 +150,46 @@ export function VideoPlayerModal() {
         if (savedProgress && savedProgress.currentTime > 5 && savedProgress.progressPercentage < 95) {
           video.currentTime = savedProgress.currentTime;
         }
-        video.play().then(() => setIsPlaying(true)).catch((err) => {
-          if (err.name === "NotAllowedError") {
-            video.muted = true;
-            setIsMuted(true);
-            video.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
-          } else {
-            setIsPlaying(false);
-          }
-        });
+        video
+          .play()
+          .then(() => setIsPlaying(true))
+          .catch((err) => {
+            if (err.name === "NotAllowedError") {
+              video.muted = true;
+              setIsMuted(true);
+              video
+                .play()
+                .then(() => setIsPlaying(true))
+                .catch(() => setIsPlaying(false));
+            } else {
+              setIsPlaying(false);
+            }
+          });
+      });
+
+      // Capture Subtitle Tracks
+      hls.on(Hls.Events.SUBTITLE_TRACKS_UPDATED, (_e, data) => {
+        if (data.subtitleTracks && data.subtitleTracks.length > 0) {
+          const list: SubtitleTrackOption[] = data.subtitleTracks.map((t, idx) => ({
+            id: `hls-${idx}`,
+            label: t.name || t.lang || `Altyazı Kanalı ${idx + 1}`,
+            lang: t.lang,
+            type: "hls",
+          }));
+          setHlsSubtitleTracks(list);
+        }
+      });
+
+      // Capture Audio Tracks
+      hls.on(Hls.Events.AUDIO_TRACKS_UPDATED, (_e, data) => {
+        if (data.audioTracks && data.audioTracks.length > 0) {
+          const list: AudioTrackOption[] = data.audioTracks.map((t, idx) => ({
+            id: idx,
+            label: t.name || t.lang || `Ses Kanalı ${idx + 1}`,
+            lang: t.lang,
+          }));
+          setAudioTracks(list);
+        }
       });
 
       hls.on(Hls.Events.ERROR, (_event, data) => {
@@ -131,7 +228,10 @@ export function VideoPlayerModal() {
               if (err.name === "NotAllowedError") {
                 video.muted = true;
                 setIsMuted(true);
-                video.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
+                video
+                  .play()
+                  .then(() => setIsPlaying(true))
+                  .catch(() => setIsPlaying(false));
               } else {
                 setIsPlaying(false);
               }
@@ -146,7 +246,8 @@ export function VideoPlayerModal() {
         let msg = "Video yüklenirken veya oynatılırken bir hata oluştu.";
         if (err) {
           if (err.code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED) {
-            msg = "Bu içerik formatı (MKV/AC3) tarayıcınız tarafından doğrudan desteklenmiyor. Aşağıdaki butonla bağlantıyı kopyalayarak VLC Player veya harici oynatıcıda izleyebilirsiniz.";
+            msg =
+              "Bu içerik formatı (MKV/AC3) tarayıcınız tarafından doğrudan desteklenmiyor. Aşağıdaki butonla bağlantıyı kopyalayarak VLC Player veya harici oynatıcıda izleyebilirsiniz.";
           } else if (err.code === MediaError.MEDIA_ERR_NETWORK) {
             msg = "Ağ bağlantı hatası: Sunucu yayını yanıt vermedi.";
           }
@@ -178,11 +279,11 @@ export function VideoPlayerModal() {
     setShowControls(true);
     if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
     controlsTimeoutRef.current = setTimeout(() => {
-      if (isPlaying) {
+      if (isPlaying && !isSubtitleModalOpen && !isEpisodesDrawerOpen && !showSpeedMenu) {
         setShowControls(false);
       }
     }, 3500);
-  }, [isPlaying]);
+  }, [isPlaying, isSubtitleModalOpen, isEpisodesDrawerOpen, showSpeedMenu]);
 
   useEffect(() => {
     resetControlsTimeout();
@@ -239,9 +340,12 @@ export function VideoPlayerModal() {
   const handlePlayPause = () => {
     if (!videoRef.current) return;
     if (videoRef.current.paused) {
-      videoRef.current.play().then(() => setIsPlaying(true)).catch((e) => {
-        console.warn("Play error:", e);
-      });
+      videoRef.current
+        .play()
+        .then(() => setIsPlaying(true))
+        .catch((e) => {
+          console.warn("Play error:", e);
+        });
     } else {
       videoRef.current.pause();
       setIsPlaying(false);
@@ -251,8 +355,17 @@ export function VideoPlayerModal() {
 
   const handleSkip = (seconds: number) => {
     if (!videoRef.current) return;
-    videoRef.current.currentTime = Math.max(0, Math.min(duration, videoRef.current.currentTime + seconds));
+    videoRef.current.currentTime = Math.max(
+      0,
+      Math.min(duration, videoRef.current.currentTime + seconds)
+    );
     resetControlsTimeout();
+  };
+
+  const handleSkipIntro = () => {
+    handleSkip(85);
+    setShowSkipFeedback(true);
+    setTimeout(() => setShowSkipFeedback(false), 2000);
   };
 
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -287,13 +400,153 @@ export function VideoPlayerModal() {
 
   const toggleFullscreen = () => {
     if (!containerRef.current) return;
-
     if (!document.fullscreenElement) {
       containerRef.current.requestFullscreen().then(() => setIsFullscreen(true)).catch(() => {});
     } else {
       document.exitFullscreen().then(() => setIsFullscreen(false)).catch(() => {});
     }
   };
+
+  const togglePiP = async () => {
+    if (!videoRef.current) return;
+    try {
+      if (document.pictureInPictureElement) {
+        await document.exitPictureInPicture();
+      } else {
+        await videoRef.current.requestPictureInPicture();
+      }
+    } catch (err) {
+      console.warn("PiP error:", err);
+    }
+  };
+
+  const handlePlaybackRateChange = (speed: number) => {
+    if (!videoRef.current) return;
+    videoRef.current.playbackRate = speed;
+    setPlaybackRate(speed);
+    setShowSpeedMenu(false);
+  };
+
+  // Double Click / Double Tap Detection on Video Screen
+  const handleContainerClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const now = Date.now();
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    const x = e.clientX - rect.left;
+    const width = rect.width;
+    const isLeft = x < width * 0.35;
+    const isRight = x > width * 0.65;
+
+    if (now - lastTapRef.current.time < 300) {
+      // Double tap detected!
+      if (isLeft) {
+        handleSkip(-10);
+        setDoubleTapRipple({ side: "left", active: true });
+        setTimeout(() => setDoubleTapRipple(null), 600);
+      } else if (isRight) {
+        handleSkip(10);
+        setDoubleTapRipple({ side: "right", active: true });
+        setTimeout(() => setDoubleTapRipple(null), 600);
+      }
+      lastTapRef.current = { time: 0, x };
+    } else {
+      lastTapRef.current = { time: now, x };
+      resetControlsTimeout();
+    }
+  };
+
+  // Keyboard Shortcuts Listener
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if user is typing in an input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      switch (e.key) {
+        case " ":
+        case "k":
+        case "K":
+          e.preventDefault();
+          handlePlayPause();
+          break;
+        case "f":
+        case "F":
+          e.preventDefault();
+          toggleFullscreen();
+          break;
+        case "m":
+        case "M":
+          e.preventDefault();
+          toggleMute();
+          break;
+        case "ArrowLeft":
+          e.preventDefault();
+          handleSkip(-10);
+          break;
+        case "ArrowRight":
+          e.preventDefault();
+          handleSkip(10);
+          break;
+        case "ArrowUp":
+          e.preventDefault();
+          if (videoRef.current) {
+            const nextVol = Math.min(1, videoRef.current.volume + 0.1);
+            videoRef.current.volume = nextVol;
+            setVolume(nextVol);
+            setIsMuted(false);
+          }
+          break;
+        case "ArrowDown":
+          e.preventDefault();
+          if (videoRef.current) {
+            const nextVol = Math.max(0, videoRef.current.volume - 0.1);
+            videoRef.current.volume = nextVol;
+            setVolume(nextVol);
+            if (nextVol === 0) setIsMuted(true);
+          }
+          break;
+        case "s":
+        case "S":
+          if (playingMedia?.type !== "live") {
+            e.preventDefault();
+            handleSkipIntro();
+          }
+          break;
+        case "c":
+        case "C":
+          e.preventDefault();
+          setActiveSubtitleTrack((prev) => (prev === "none" ? "custom" : "none"));
+          break;
+        case "Escape":
+          if (isEpisodesDrawerOpen) {
+            e.preventDefault();
+            setIsEpisodesDrawerOpen(false);
+          } else if (isSubtitleModalOpen) {
+            e.preventDefault();
+            setIsSubtitleModalOpen(false);
+          } else if (showSpeedMenu) {
+            e.preventDefault();
+            setShowSpeedMenu(false);
+          } else {
+            closePlayer();
+          }
+          break;
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [
+    isPlaying,
+    isMuted,
+    volume,
+    isEpisodesDrawerOpen,
+    isSubtitleModalOpen,
+    showSpeedMenu,
+    playingMedia,
+  ]);
 
   const handleCopyUrl = () => {
     if (!playingMedia) return;
@@ -320,22 +573,137 @@ export function VideoPlayerModal() {
     });
   };
 
+  // Drawer Episode Selection
+  const handleSelectDrawerEpisode = (
+    episode: EpisodeItem,
+    seasonNum: number,
+    episodesList: EpisodeItem[],
+    epIndex: number
+  ) => {
+    if (!xtreamService || !playingMedia) return;
+
+    const streamUrl = xtreamService.getSeriesStreamUrl(
+      episode.id,
+      episode.container_extension || "mp4"
+    );
+
+    let nextEpisode = undefined;
+    if (epIndex + 1 < episodesList.length) {
+      const nextEp = episodesList[epIndex + 1];
+      nextEpisode = {
+        title: nextEp.title,
+        seasonNum,
+        episodeNum: nextEp.episode_num,
+        streamUrl: xtreamService.getSeriesStreamUrl(nextEp.id, nextEp.container_extension || "mp4"),
+        episodeId: nextEp.id,
+        poster: nextEp.info?.movie_image || playingMedia.poster,
+      };
+    }
+
+    playMedia({
+      id: `series-${playingMedia.seriesId}-s${seasonNum}-e${episode.episode_num}`,
+      title: playingMedia.title,
+      subtitle: `${seasonNum}. Sezon ${episode.episode_num}. Bölüm`,
+      poster: episode.info?.movie_image || playingMedia.poster,
+      streamUrl,
+      type: "series",
+      contentId: playingMedia.contentId,
+      seriesId: playingMedia.seriesId,
+      seasonNum,
+      episodeNum: episode.episode_num,
+      episodeId: episode.id,
+      nextEpisode,
+    });
+
+    setIsEpisodesDrawerOpen(false);
+  };
+
+  // Subtitle Settings update & save
+  const handleUpdateSubtitleSettings = (updates: Partial<SubtitleSettings>) => {
+    setSubtitleSettings((prev) => {
+      const next = { ...prev, ...updates };
+      StorageService.saveSubtitleSettings(next);
+      return next;
+    });
+  };
+
+  // Subtitle Track Selection
+  const handleSelectSubtitleTrack = (trackId: string) => {
+    setActiveSubtitleTrack(trackId);
+    if (trackId.startsWith("hls-")) {
+      const idx = parseInt(trackId.replace("hls-", ""), 10);
+      if (hlsRef.current) {
+        hlsRef.current.subtitleTrack = idx;
+      }
+    } else {
+      if (hlsRef.current) {
+        hlsRef.current.subtitleTrack = -1; // disable HLS subtitle track
+      }
+    }
+  };
+
+  // Audio Track Selection
+  const handleSelectAudioTrack = (trackId: number) => {
+    setActiveAudioTrack(trackId);
+    if (hlsRef.current) {
+      hlsRef.current.audioTrack = trackId;
+    }
+  };
+
+  // Custom Subtitle Upload
+  const handleUploadCustomSubtitle = (name: string, cues: SubtitleCue[]) => {
+    setCustomSubtitleName(name);
+    setCustomCues(cues);
+    setActiveSubtitleTrack("custom");
+
+    // Generate WebVTT blob for native PiP track
+    const vtt = cuesToWebVtt(cues, subtitleSettings.offset);
+    const blobUrl = createVttBlobUrl(vtt);
+    setNativeTrackBlobUrl(blobUrl);
+  };
+
+  const handleRemoveCustomSubtitle = () => {
+    setCustomSubtitleName(null);
+    setCustomCues([]);
+    setNativeTrackBlobUrl(null);
+    if (activeSubtitleTrack === "custom") {
+      setActiveSubtitleTrack("none");
+    }
+  };
+
+  // Compute Active Subtitle Cue for custom text overlay
+  const activeSubtitleCue = useMemo(() => {
+    if (activeSubtitleTrack !== "custom" || customCues.length === 0) return null;
+    const adjustedTime = currentTime - subtitleSettings.offset;
+    return customCues.find((c) => adjustedTime >= c.start && adjustedTime <= c.end) || null;
+  }, [activeSubtitleTrack, customCues, currentTime, subtitleSettings.offset]);
+
   if (!playingMedia) return null;
 
   const isLive = playingMedia.type === "live";
+  const isSeries = playingMedia.type === "series";
+
+  // Show Skip Intro condition: VOD / Series during intro duration (10s to 120s)
+  const canShowSkipIntro =
+    !isLive &&
+    ((isSeries && currentTime >= 10 && currentTime <= 110) ||
+      (currentTime >= 15 && currentTime <= 95));
 
   return (
     <div
       ref={containerRef}
       onMouseMove={resetControlsTimeout}
-      onClick={resetControlsTimeout}
+      onClick={handleContainerClick}
       className="fixed inset-0 z-50 bg-black flex items-center justify-center select-none overflow-hidden"
     >
       {/* HTML5 Video Element */}
       <video
         ref={videoRef}
         className="w-full h-full object-contain cursor-pointer"
-        onClick={handlePlayPause}
+        onClick={(e) => {
+          e.stopPropagation();
+          handlePlayPause();
+        }}
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
         onWaiting={() => setIsBuffering(true)}
@@ -343,13 +711,107 @@ export function VideoPlayerModal() {
         onTimeUpdate={handleTimeUpdate}
         autoPlay
         playsInline
-      />
+      >
+        {nativeTrackBlobUrl && (
+          <track
+            kind="subtitles"
+            label="Harici Altyazı"
+            src={nativeTrackBlobUrl}
+            default
+          />
+        )}
+      </video>
+
+      {/* Double Tap Seek Feedback Ripple Left */}
+      {doubleTapRipple?.side === "left" && (
+        <div className="absolute left-10 top-1/2 -translate-y-1/2 w-28 h-28 rounded-full bg-white/20 backdrop-blur-xs flex flex-col items-center justify-center text-white animate-ping-once pointer-events-none z-30">
+          <RotateCcw className="w-8 h-8 mb-1" />
+          <span className="text-xs font-bold">-10 sn</span>
+        </div>
+      )}
+
+      {/* Double Tap Seek Feedback Ripple Right */}
+      {doubleTapRipple?.side === "right" && (
+        <div className="absolute right-10 top-1/2 -translate-y-1/2 w-28 h-28 rounded-full bg-white/20 backdrop-blur-xs flex flex-col items-center justify-center text-white animate-ping-once pointer-events-none z-30">
+          <RotateCw className="w-8 h-8 mb-1" />
+          <span className="text-xs font-bold">+10 sn</span>
+        </div>
+      )}
+
+      {/* Skip Intro Toast Notification */}
+      {showSkipFeedback && (
+        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-30 py-2 px-5 rounded-full bg-brand text-white text-xs font-bold flex items-center gap-2 shadow-2xl animate-fade-in pointer-events-none">
+          <FastForward className="w-4 h-4" />
+          <span>Jenerik Atlandı (+85s)</span>
+        </div>
+      )}
+
+      {/* Custom Subtitle Text Overlay (Netflix styling) */}
+      {activeSubtitleCue && (
+        <div
+          className={`absolute left-4 right-4 pointer-events-none flex justify-center z-25 transition-all ${
+            showControls ? "bottom-24 sm:bottom-28" : "bottom-10 sm:bottom-14"
+          }`}
+        >
+          <div
+            className={`px-4 py-1.5 rounded-lg text-center leading-relaxed tracking-wide transition-all max-w-3xl ${
+              subtitleSettings.backgroundColor === "solid"
+                ? "bg-black"
+                : subtitleSettings.backgroundColor === "semi"
+                ? "bg-black/75 backdrop-blur-xs"
+                : "bg-transparent drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)]"
+            } ${
+              subtitleSettings.fontSize === "small"
+                ? "text-sm sm:text-base font-medium"
+                : subtitleSettings.fontSize === "medium"
+                ? "text-base sm:text-lg font-semibold"
+                : subtitleSettings.fontSize === "large"
+                ? "text-xl sm:text-2xl font-bold"
+                : "text-2xl sm:text-3xl font-black"
+            }`}
+            style={{
+              color:
+                subtitleSettings.color === "yellow"
+                  ? "#ffe600"
+                  : subtitleSettings.color === "cyan"
+                  ? "#00e5ff"
+                  : subtitleSettings.color === "green"
+                  ? "#4ade80"
+                  : "#ffffff",
+              textShadow:
+                subtitleSettings.backgroundColor === "transparent"
+                  ? "0 2px 5px rgba(0,0,0,1), 0 0 3px rgba(0,0,0,1), -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000"
+                  : "0 2px 4px rgba(0,0,0,0.8)",
+            }}
+          >
+            {activeSubtitleCue.text}
+          </div>
+        </div>
+      )}
+
+      {/* Floating Netflix Skip Intro Button */}
+      {canShowSkipIntro && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            handleSkipIntro();
+          }}
+          className={`absolute right-4 sm:right-8 z-30 py-2 sm:py-2.5 px-4 sm:px-5 rounded-xl bg-zinc-900/90 hover:bg-brand text-white text-xs sm:text-sm font-bold border border-white/20 hover:border-brand flex items-center gap-2 shadow-2xl transition-all cursor-pointer active:scale-95 duration-300 ${
+            showControls ? "bottom-24 sm:bottom-28" : "bottom-8 sm:bottom-12"
+          }`}
+        >
+          <FastForward className="w-4 h-4 fill-white" />
+          <span>Jeneriği Atla</span>
+        </button>
+      )}
 
       {/* Buffering Spinner */}
       {isBuffering && !playbackError && (
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none bg-black/40 backdrop-blur-xs">
           <Loader2 className="w-14 h-14 text-brand animate-spin drop-shadow-[0_0_15px_rgba(229,9,20,0.9)]" />
-          <span className="text-xs text-zinc-300 mt-3 font-semibold tracking-wide">Yükleniyor...</span>
+          <span className="text-xs text-zinc-300 mt-3 font-semibold tracking-wide">
+            Yükleniyor...
+          </span>
         </div>
       )}
 
@@ -431,7 +893,8 @@ export function VideoPlayerModal() {
 
       {/* Top Header Controls (Back, Title, Live tag, VLC link) */}
       <div
-        className={`absolute top-0 left-0 right-0 p-4 sm:p-6 bg-gradient-to-b from-black/90 via-black/40 to-transparent flex items-center justify-between transition-opacity duration-300 z-10 ${
+        onClick={(e) => e.stopPropagation()}
+        className={`absolute top-0 left-0 right-0 p-4 sm:p-6 bg-gradient-to-b from-black/90 via-black/40 to-transparent flex items-center justify-between transition-opacity duration-300 z-30 ${
           showControls ? "opacity-100" : "opacity-0 pointer-events-none"
         }`}
       >
@@ -463,6 +926,7 @@ export function VideoPlayerModal() {
 
         {/* Right Header items */}
         <div className="flex items-center gap-2">
+          {/* External VLC Link */}
           <a
             href={`vlc://${playingMedia.streamUrl}`}
             className="px-3 py-1.5 rounded-xl bg-zinc-800/90 hover:bg-zinc-700 text-zinc-200 hover:text-white border border-white/10 text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-md"
@@ -474,11 +938,14 @@ export function VideoPlayerModal() {
         </div>
       </div>
 
-      {/* Center Big Play/Pause icon feedback on click */}
+      {/* Center Big Play/Pause icon feedback on pause */}
       {!isPlaying && !isBuffering && !playbackError && (
         <div
-          onClick={handlePlayPause}
-          className="absolute inset-0 flex items-center justify-center cursor-pointer bg-black/30"
+          onClick={(e) => {
+            e.stopPropagation();
+            handlePlayPause();
+          }}
+          className="absolute inset-0 flex items-center justify-center cursor-pointer bg-black/30 z-20"
         >
           <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-brand/95 hover:bg-brand text-white flex items-center justify-center shadow-2xl shadow-brand/70 scale-100 hover:scale-110 active:scale-95 transition-all">
             <Play className="w-8 h-8 sm:w-10 sm:h-10 fill-white ml-1" />
@@ -488,7 +955,8 @@ export function VideoPlayerModal() {
 
       {/* Bottom Controls Bar */}
       <div
-        className={`absolute bottom-0 left-0 right-0 p-4 sm:p-6 bg-gradient-to-t from-black/95 via-black/70 to-transparent transition-opacity duration-300 z-10 ${
+        onClick={(e) => e.stopPropagation()}
+        className={`absolute bottom-0 left-0 right-0 p-4 sm:p-6 bg-gradient-to-t from-black/95 via-black/75 to-transparent transition-opacity duration-300 z-30 ${
           showControls ? "opacity-100" : "opacity-0 pointer-events-none"
         }`}
       >
@@ -517,14 +985,19 @@ export function VideoPlayerModal() {
 
         {/* Buttons Row */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 sm:gap-4">
+          {/* Left Buttons: Play, Skip 10, Volume */}
+          <div className="flex items-center gap-2 sm:gap-3">
             {/* Play / Pause */}
             <button
               onClick={handlePlayPause}
               className="p-2 sm:p-2.5 rounded-full bg-white/10 hover:bg-brand text-white transition-all cursor-pointer active:scale-95"
-              title={isPlaying ? "Duraklat" : "Oynat"}
+              title={isPlaying ? "Duraklat (Space)" : "Oynat (Space)"}
             >
-              {isPlaying ? <Pause className="w-5 h-5 fill-white" /> : <Play className="w-5 h-5 fill-white ml-0.5" />}
+              {isPlaying ? (
+                <Pause className="w-5 h-5 fill-white" />
+              ) : (
+                <Play className="w-5 h-5 fill-white ml-0.5" />
+              )}
             </button>
 
             {/* Skip 10s Backward & Forward (VOD only) */}
@@ -533,14 +1006,14 @@ export function VideoPlayerModal() {
                 <button
                   onClick={() => handleSkip(-10)}
                   className="p-2 text-zinc-300 hover:text-white transition-colors cursor-pointer"
-                  title="10 Saniye Geri"
+                  title="10 Saniye Geri (Sol Ok)"
                 >
                   <RotateCcw className="w-5 h-5" />
                 </button>
                 <button
                   onClick={() => handleSkip(10)}
                   className="p-2 text-zinc-300 hover:text-white transition-colors cursor-pointer"
-                  title="10 Saniye İleri"
+                  title="10 Saniye İleri (Sağ Ok)"
                 >
                   <RotateCw className="w-5 h-5" />
                 </button>
@@ -548,12 +1021,17 @@ export function VideoPlayerModal() {
             )}
 
             {/* Volume Control */}
-            <div className="flex items-center gap-2 ml-1">
+            <div className="flex items-center gap-1.5 ml-1">
               <button
                 onClick={toggleMute}
                 className="p-2 text-zinc-300 hover:text-white transition-colors cursor-pointer"
+                title={isMuted ? "Sesi Aç (M)" : "Sesi Kapat (M)"}
               >
-                {isMuted || volume === 0 ? <VolumeX className="w-5 h-5 text-red-400" /> : <Volume2 className="w-5 h-5" />}
+                {isMuted || volume === 0 ? (
+                  <VolumeX className="w-5 h-5 text-red-400" />
+                ) : (
+                  <Volume2 className="w-5 h-5" />
+                )}
               </button>
               <input
                 type="range"
@@ -567,18 +1045,120 @@ export function VideoPlayerModal() {
             </div>
           </div>
 
-          {/* Right side controls (Fullscreen) */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          {/* Right Buttons: Episodes Drawer, Subtitles, Speed, PiP, Fullscreen */}
+          <div className="flex items-center gap-1.5 sm:gap-2.5">
+            {/* Series In-Player Episodes Drawer Trigger */}
+            {isSeries && playingMedia.seriesId && (
+              <button
+                onClick={() => setIsEpisodesDrawerOpen(true)}
+                className="p-2 sm:px-3 sm:py-1.5 rounded-xl bg-zinc-800/80 hover:bg-zinc-700 text-zinc-200 hover:text-white border border-white/10 text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
+                title="Bölümler ve Sezonlar"
+              >
+                <Layers className="w-4 h-4 text-brand" />
+                <span className="hidden sm:inline">Bölümler</span>
+              </button>
+            )}
+
+            {/* Audio & Subtitles Trigger */}
+            <button
+              onClick={() => setIsSubtitleModalOpen(true)}
+              className={`p-2 sm:px-3 sm:py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                activeSubtitleTrack !== "none"
+                  ? "bg-brand/20 border-brand/50 text-white"
+                  : "bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 hover:text-white border-white/10"
+              }`}
+              title="Ses ve Altyazı Seçimi"
+            >
+              <Subtitles className={`w-4 h-4 ${activeSubtitleTrack !== "none" ? "text-brand" : ""}`} />
+              <span className="hidden sm:inline">Altyazı</span>
+            </button>
+
+            {/* Playback Speed Popover Trigger */}
+            {!isLive && (
+              <div className="relative">
+                <button
+                  onClick={() => setShowSpeedMenu(!showSpeedMenu)}
+                  className="px-2.5 py-1.5 rounded-xl bg-zinc-800/80 hover:bg-zinc-700 text-zinc-200 hover:text-white border border-white/10 text-xs font-bold transition-all cursor-pointer flex items-center gap-1"
+                  title="Oynatma Hızı"
+                >
+                  <Gauge className="w-3.5 h-3.5 text-zinc-400" />
+                  <span>{playbackRate}x</span>
+                </button>
+
+                {showSpeedMenu && (
+                  <div className="absolute bottom-full mb-2 right-0 bg-zinc-900 border border-white/10 rounded-2xl p-1.5 shadow-2xl flex flex-col gap-1 min-w-[90px] z-40">
+                    {PLAYBACK_SPEEDS.map((speed) => (
+                      <button
+                        key={speed}
+                        onClick={() => handlePlaybackRateChange(speed)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all text-left cursor-pointer ${
+                          playbackRate === speed
+                            ? "bg-brand text-white"
+                            : "text-zinc-300 hover:bg-zinc-800"
+                        }`}
+                      >
+                        {speed === 1 ? "1.0x (Normal)" : `${speed}x`}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Picture in Picture */}
+            <button
+              onClick={togglePiP}
+              className="p-2 text-zinc-300 hover:text-white transition-colors cursor-pointer hidden sm:block"
+              title="Pencere İçinde Pencere (PiP)"
+            >
+              <PictureInPicture className="w-5 h-5" />
+            </button>
+
+            {/* Fullscreen Toggle */}
             <button
               onClick={toggleFullscreen}
               className="p-2 text-zinc-300 hover:text-white transition-colors cursor-pointer"
-              title={isFullscreen ? "Tam Ekrandan Çık" : "Tam Ekran Yap"}
+              title={isFullscreen ? "Tam Ekrandan Çık (F)" : "Tam Ekran Yap (F)"}
             >
-              {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
+              {isFullscreen ? (
+                <Minimize className="w-5 h-5" />
+              ) : (
+                <Maximize className="w-5 h-5" />
+              )}
             </button>
           </div>
         </div>
       </div>
+
+      {/* Subtitles & Audio Tracks Modal */}
+      <SubtitleAudioModal
+        isOpen={isSubtitleModalOpen}
+        onClose={() => setIsSubtitleModalOpen(false)}
+        audioTracks={audioTracks}
+        activeAudioTrack={activeAudioTrack}
+        onSelectAudioTrack={handleSelectAudioTrack}
+        subtitleTracks={hlsSubtitleTracks}
+        activeSubtitleTrack={activeSubtitleTrack}
+        onSelectSubtitleTrack={handleSelectSubtitleTrack}
+        customSubtitleName={customSubtitleName}
+        onUploadCustomSubtitle={handleUploadCustomSubtitle}
+        onRemoveCustomSubtitle={handleRemoveCustomSubtitle}
+        settings={subtitleSettings}
+        onUpdateSettings={handleUpdateSubtitleSettings}
+      />
+
+      {/* In-Player Episodes Drawer */}
+      {isSeries && playingMedia.seriesId && (
+        <InPlayerEpisodesDrawer
+          isOpen={isEpisodesDrawerOpen}
+          onClose={() => setIsEpisodesDrawerOpen(false)}
+          seriesId={playingMedia.seriesId}
+          seriesTitle={playingMedia.title}
+          currentSeasonNum={playingMedia.seasonNum}
+          currentEpisodeNum={playingMedia.episodeNum}
+          onSelectEpisode={handleSelectDrawerEpisode}
+        />
+      )}
     </div>
   );
 }

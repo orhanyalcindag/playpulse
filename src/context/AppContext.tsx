@@ -15,6 +15,7 @@ import {
 } from "@/types/iptv";
 import { StorageService } from "@/lib/storage";
 import { XtreamService } from "@/lib/xtream";
+import { PinLockModal } from "@/components/profile/PinLockModal";
 
 interface AppContextType {
   credentials: XtreamCredentials | null;
@@ -62,6 +63,17 @@ interface AppContextType {
   searchOpen: boolean;
   setSearchOpen: (open: boolean) => void;
 
+  // Kids Mode & Parental Controls
+  isKidsMode: boolean;
+  toggleKidsMode: () => void;
+  parentalPin: string;
+  updateParentalPin: (pin: string) => void;
+  isPinUnlocked: boolean;
+  isPinModalOpen: boolean;
+  requestPinAccess: (onSuccess: () => void) => void;
+  closePinModal: () => void;
+  isAdultCategory: (categoryName: string) => boolean;
+
   // Service
   xtreamService: XtreamService | null;
 }
@@ -86,6 +98,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const [playingMedia, setPlayingMedia] = useState<PlayingMedia | null>(null);
   const [searchOpen, setSearchOpen] = useState<boolean>(false);
+
+  // Kids Mode & Parental Pin
+  const [isKidsMode, setIsKidsMode] = useState<boolean>(false);
+  const [parentalPin, setParentalPin] = useState<string>("0000");
+  const [isPinUnlocked, setIsPinUnlocked] = useState<boolean>(false);
+  const [isPinModalOpen, setIsPinModalOpen] = useState<boolean>(false);
+  const [pendingPinSuccessCallback, setPendingPinSuccessCallback] = useState<(() => void) | null>(null);
 
   // Initialize service based on credentials
   const xtreamService = useMemo(() => {
@@ -112,6 +131,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setFavorites(savedFavs);
     setWatchProgress(savedProgress);
     setWatchedEpisodes(savedEpisodes);
+
+    const savedKidsMode = StorageService.getKidsMode();
+    const savedPin = StorageService.getParentalPin();
+    setIsKidsMode(savedKidsMode);
+    setParentalPin(savedPin);
 
     if (savedCreds) {
       setCredentials(savedCreds);
@@ -303,6 +327,60 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setPlayingMedia(null);
   };
 
+  const toggleKidsMode = () => {
+    setIsKidsMode((prev) => {
+      const next = !prev;
+      StorageService.saveKidsMode(next);
+      return next;
+    });
+  };
+
+  const updateParentalPin = (pin: string) => {
+    setParentalPin(pin);
+    StorageService.saveParentalPin(pin);
+  };
+
+  const isAdultCategory = (categoryName: string): boolean => {
+    if (!categoryName) return false;
+    const lower = categoryName.toLowerCase();
+    return (
+      lower.includes("+18") ||
+      lower.includes("18+") ||
+      lower.includes("adult") ||
+      lower.includes("yetişkin") ||
+      lower.includes("yetiskin") ||
+      lower.includes("erotik") ||
+      lower.includes("erotic") ||
+      lower.includes("porn") ||
+      lower.includes("xxx") ||
+      lower.includes("seks") ||
+      lower.includes("nsfw")
+    );
+  };
+
+  const requestPinAccess = (onSuccess: () => void) => {
+    if (isPinUnlocked) {
+      onSuccess();
+      return;
+    }
+    setPendingPinSuccessCallback(() => onSuccess);
+    setIsPinModalOpen(true);
+  };
+
+  const closePinModal = () => {
+    setIsPinModalOpen(false);
+    setPendingPinSuccessCallback(null);
+  };
+
+  const handlePinSuccess = () => {
+    setIsPinUnlocked(true);
+    setIsPinModalOpen(false);
+    if (pendingPinSuccessCallback) {
+      pendingPinSuccessCallback();
+      setPendingPinSuccessCallback(null);
+    }
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -338,10 +416,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         closePlayer,
         searchOpen,
         setSearchOpen,
+        isKidsMode,
+        toggleKidsMode,
+        parentalPin,
+        updateParentalPin,
+        isPinUnlocked,
+        isPinModalOpen,
+        requestPinAccess,
+        closePinModal,
+        isAdultCategory,
         xtreamService,
       }}
     >
       {children}
+      <PinLockModal
+        isOpen={isPinModalOpen}
+        onClose={closePinModal}
+        onSuccess={handlePinSuccess}
+        expectedPin={parentalPin}
+      />
     </AppContext.Provider>
   );
 }

@@ -2,9 +2,13 @@
 
 import React, { useState, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
-import { Play, Info, Star, Plus, Check } from "lucide-react";
+import { Play, Info, Star, Plus, Check, Dices } from "lucide-react";
 import { MovieDetailModal } from "@/components/vod/MovieDetailModal";
 import { VodStream } from "@/types/iptv";
+
+interface HeroBannerProps {
+  onOpenSurpriseMe?: () => void;
+}
 
 const DEFAULT_FEATURED: VodStream = {
   num: 1,
@@ -21,7 +25,7 @@ const DEFAULT_FEATURED: VodStream = {
   direct_source: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4",
 };
 
-export function HeroBanner() {
+export function HeroBanner({ onOpenSurpriseMe }: HeroBannerProps) {
   const { playMedia, xtreamService, isFavorite, toggleFavorite } = useApp();
   const [showDetail, setShowDetail] = useState(false);
   const [featuredMovie, setFeaturedMovie] = useState<VodStream>(DEFAULT_FEATURED);
@@ -121,6 +125,17 @@ export function HeroBanner() {
                 <Info className="w-4 h-4" />
                 <span>Detaylar</span>
               </button>
+
+              {onOpenSurpriseMe && (
+                <button
+                  onClick={onOpenSurpriseMe}
+                  className="py-2.5 px-3.5 sm:py-3 sm:px-4 bg-zinc-900/80 hover:bg-zinc-800 text-amber-400 hover:text-amber-300 font-semibold rounded-xl flex items-center gap-2 text-xs sm:text-sm backdrop-blur-md transition-all cursor-pointer hover:scale-105 active:scale-95 border border-amber-400/30 shadow-lg shadow-amber-500/10"
+                  title="Rastgele bir içerik öner"
+                >
+                  <Dices className="w-4 h-4 text-amber-400 animate-spin-slow" />
+                  <span className="hidden sm:inline">Beni Şaşırt</span>
+                </button>
+              )}
 
               <button
                 onClick={() =>

@@ -17,6 +17,7 @@ import {
   Sparkles,
   Settings,
   Crown,
+  Smile,
 } from "lucide-react";
 
 export function Navbar() {
@@ -30,6 +31,8 @@ export function Navbar() {
     credentials,
     activeProfile,
     setIsProfileManagerOpen,
+    isKidsMode,
+    toggleKidsMode,
   } = useApp();
 
   const navItems: { id: ActiveTab; label: string; icon: React.ReactNode }[] = [
@@ -110,6 +113,22 @@ export function Navbar() {
 
         {/* Right Action Icons & User Profile */}
         <div className="flex items-center gap-2 sm:gap-2.5">
+          {/* Kids Mode Toggle */}
+          <button
+            onClick={toggleKidsMode}
+            className={`p-2.5 rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 ${
+              isKidsMode
+                ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/50 shadow-md shadow-emerald-500/20"
+                : "bg-zinc-800/80 hover:bg-zinc-700/80 text-zinc-400 hover:text-white border-zinc-700/50"
+            }`}
+            title={isKidsMode ? "Çocuk Modu Açık (+18 Gizli) - Kapatmak için tıklayın" : "Çocuk Modunu Aç"}
+          >
+            <Smile className="w-4 h-4" />
+            <span className="hidden xl:inline text-xs font-bold">
+              {isKidsMode ? "Çocuk Modu" : ""}
+            </span>
+          </button>
+
           {/* Search Trigger */}
           <button
             onClick={() => setSearchOpen(true)}
