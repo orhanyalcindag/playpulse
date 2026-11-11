@@ -12,14 +12,14 @@ import {
   Play,
   Star,
   ChevronRight,
-  TrendingUp,
-  Sparkles,
+  Info,
+  Loader2,
 } from "lucide-react";
 import { MovieDetailModal } from "@/components/vod/MovieDetailModal";
 import { SeriesDetailModal } from "@/components/vod/SeriesDetailModal";
 
 export function HomeView() {
-  const { xtreamService, setActiveTab, playMedia } = useApp();
+  const { xtreamService, setActiveTab, playMedia, watchProgress } = useApp();
 
   const [trendingMovies, setTrendingMovies] = useState<VodStream[]>([]);
   const [trendingSeries, setTrendingSeries] = useState<SeriesItem[]>([]);
@@ -27,6 +27,7 @@ export function HomeView() {
 
   const [selectedMovie, setSelectedMovie] = useState<VodStream | null>(null);
   const [selectedSeries, setSelectedSeries] = useState<SeriesItem | null>(null);
+  const [loadingSeriesId, setLoadingSeriesId] = useState<number | null>(null);
 
   useEffect(() => {
     if (!xtreamService) return;
@@ -61,6 +62,106 @@ export function HomeView() {
     });
   };
 
+  const handleDirectPlayMovie = (movie: VodStream, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!xtreamService) return;
+
+    const streamUrl = xtreamService.getMovieStreamUrl(
+      movie.stream_id,
+      movie.container_extension || "mp4"
+    );
+
+    playMedia({
+      id: `movie-${movie.stream_id}`,
+      title: movie.name,
+      subtitle: "Film",
+      poster: movie.stream_icon,
+      streamUrl,
+      type: "movie",
+      contentId: movie.stream_id,
+    });
+  };
+
+  const handleDirectPlaySeries = async (series: SeriesItem, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!xtreamService) return;
+
+    // Check if user already has an active progress on this series
+    const existingProgress = Object.values(watchProgress).find(
+      (p) => p.type === "series" && p.seriesId === series.series_id
+    );
+
+    if (existingProgress) {
+      playMedia({
+        id: existingProgress.id,
+        title: existingProgress.title,
+        subtitle: existingProgress.subtitle,
+        poster: existingProgress.poster,
+        streamUrl: existingProgress.streamUrl,
+        type: "series",
+        contentId: existingProgress.contentId,
+        seriesId: existingProgress.seriesId,
+        seasonNum: existingProgress.seasonNum,
+        episodeNum: existingProgress.episodeNum,
+        episodeId: existingProgress.episodeId,
+      });
+      return;
+    }
+
+    setLoadingSeriesId(series.series_id);
+    try {
+      const info = await xtreamService.getSeriesInfo(series.series_id);
+      if (info && info.episodes) {
+        const firstSeasonKey = Object.keys(info.episodes)[0] || "1";
+        const seasonEpisodes = info.episodes[firstSeasonKey];
+        if (seasonEpisodes && seasonEpisodes.length > 0) {
+          const ep1 = seasonEpisodes[0];
+          const streamUrl = xtreamService.getSeriesStreamUrl(
+            ep1.id,
+            ep1.container_extension || "mp4"
+          );
+
+          let nextEpisode = undefined;
+          if (seasonEpisodes.length > 1) {
+            const ep2 = seasonEpisodes[1];
+            nextEpisode = {
+              title: ep2.title,
+              seasonNum: Number(firstSeasonKey),
+              episodeNum: ep2.episode_num,
+              streamUrl: xtreamService.getSeriesStreamUrl(ep2.id, ep2.container_extension || "mp4"),
+              episodeId: String(ep2.id),
+              poster: ep2.info?.movie_image || series.cover,
+            };
+          }
+
+          playMedia({
+            id: `series-${series.series_id}-s${firstSeasonKey}-e${ep1.episode_num}`,
+            title: series.name,
+            subtitle: `${firstSeasonKey}. Sezon 1. Bölüm: ${ep1.title}`,
+            poster: ep1.info?.movie_image || series.cover,
+            streamUrl,
+            type: "series",
+            contentId: series.series_id,
+            seriesId: series.series_id,
+            seasonNum: Number(firstSeasonKey),
+            episodeNum: ep1.episode_num,
+            episodeId: String(ep1.id),
+            nextEpisode,
+          });
+        } else {
+          setSelectedSeries(series);
+        }
+      } else {
+        setSelectedSeries(series);
+      }
+    } catch (err) {
+      console.error("Failed to load series for direct play:", err);
+      setSelectedSeries(series);
+    } finally {
+      setLoadingSeriesId(null);
+    }
+  };
+
   return (
     <div className="pb-24 animate-fade-in">
       {/* Cinematic Hero Billboard */}
@@ -71,28 +172,28 @@ export function HomeView() {
         <div className="flex md:hidden items-center justify-center gap-2 px-4 -mt-2 sm:-mt-4">
           <button
             onClick={() => setActiveTab("live")}
-            className="flex-1 py-2.5 px-3 rounded-xl bg-dark-elevated/90 border border-white/10 text-xs font-bold text-white flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition-all"
+            className="flex-1 py-2.5 px-3 rounded-xl bg-dark-elevated/90 border border-white/10 text-xs font-bold text-white flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition-all cursor-pointer"
           >
             <Tv className="w-3.5 h-3.5 text-emerald-400" />
             <span>Canlı TV</span>
           </button>
           <button
             onClick={() => setActiveTab("movies")}
-            className="flex-1 py-2.5 px-3 rounded-xl bg-dark-elevated/90 border border-white/10 text-xs font-bold text-white flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition-all"
+            className="flex-1 py-2.5 px-3 rounded-xl bg-dark-elevated/90 border border-white/10 text-xs font-bold text-white flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition-all cursor-pointer"
           >
             <Film className="w-3.5 h-3.5 text-brand" />
             <span>Filmler</span>
           </button>
           <button
             onClick={() => setActiveTab("series")}
-            className="flex-1 py-2.5 px-3 rounded-xl bg-dark-elevated/90 border border-white/10 text-xs font-bold text-white flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition-all"
+            className="flex-1 py-2.5 px-3 rounded-xl bg-dark-elevated/90 border border-white/10 text-xs font-bold text-white flex items-center justify-center gap-1.5 shadow-md active:scale-95 transition-all cursor-pointer"
           >
             <Clapperboard className="w-3.5 h-3.5 text-purple-400" />
             <span>Diziler</span>
           </button>
         </div>
 
-        {/* Continue Watching shelf (If user has progress) */}
+        {/* Continue Watching shelf */}
         <ContinueWatchingRow />
 
         {/* Section 1: Featured Live TV Channels */}
@@ -119,7 +220,7 @@ export function HomeView() {
                 <div
                   key={channel.stream_id}
                   onClick={() => handlePlayLive(channel)}
-                  className="group relative p-2.5 rounded-2xl bg-dark-surface hover:bg-dark-elevated border border-dark-border hover:border-brand/40 flex flex-col items-center justify-center text-center cursor-pointer transition-all duration-300 hover:-translate-y-1 shadow-sm"
+                  className="group relative p-2.5 rounded-2xl bg-dark-surface hover:bg-dark-elevated border border-dark-border hover:border-brand/40 flex flex-col items-center justify-center text-center cursor-pointer transition-all duration-300 hover:-translate-y-1 shadow-sm select-none"
                 >
                   <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-zinc-900 flex items-center justify-center p-1.5 mb-2 relative overflow-hidden">
                     {channel.stream_icon ? (
@@ -132,8 +233,8 @@ export function HomeView() {
                     ) : (
                       <Tv className="w-6 h-6 text-zinc-600" />
                     )}
-                    <div className="absolute inset-0 bg-brand/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                      <Play className="w-4 h-4 text-white fill-white" />
+                    <div className="absolute inset-0 bg-brand/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                      <Play className="w-5 h-5 text-white fill-white" />
                     </div>
                   </div>
                   <span className="text-[11px] font-semibold text-zinc-200 group-hover:text-brand truncate w-full">
@@ -168,21 +269,37 @@ export function HomeView() {
               {trendingMovies.map((movie) => (
                 <div
                   key={movie.stream_id}
-                  onClick={() => setSelectedMovie(movie)}
-                  className="group relative flex-none w-[140px] sm:w-[170px] bg-dark-surface rounded-2xl overflow-hidden border border-white/5 hover:border-brand/40 cursor-pointer transition-all duration-300 hover:-translate-y-1.5 shadow-md"
+                  className="group relative flex-none w-[140px] sm:w-[170px] bg-dark-surface rounded-2xl overflow-hidden border border-white/5 hover:border-brand/40 transition-all duration-300 hover:-translate-y-1.5 shadow-md flex flex-col select-none"
                 >
-                  <div className="relative aspect-[2/3] w-full bg-zinc-900 overflow-hidden">
+                  {/* Poster Area: Clicking immediately plays the movie */}
+                  <div
+                    onClick={(e) => handleDirectPlayMovie(movie, e)}
+                    className="relative aspect-[2/3] w-full bg-zinc-900 overflow-hidden cursor-pointer"
+                  >
                     {movie.stream_icon ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={movie.stream_icon}
                         alt={movie.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        loading="lazy"
+                        onError={(e) => {
+                          (e.target as HTMLElement).style.display = "none";
+                        }}
                       />
                     ) : (
                       <Film className="w-8 h-8 text-zinc-700 m-auto mt-12" />
                     )}
+
                     <div className="absolute inset-0 bg-gradient-to-t from-dark-surface via-transparent to-transparent opacity-80" />
+
+                    {/* Red Hover Play Button in Center */}
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none">
+                      <div className="w-11 h-11 rounded-full bg-brand text-white flex items-center justify-center shadow-xl shadow-brand/60 group-hover:scale-110 active:scale-95 transition-all">
+                        <Play className="w-5 h-5 fill-white ml-0.5" />
+                      </div>
+                    </div>
+
                     {movie.rating && (
                       <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-black/70 text-[10px] font-bold text-amber-400 flex items-center gap-1">
                         <Star className="w-3 h-3 fill-amber-400" />
@@ -190,10 +307,25 @@ export function HomeView() {
                       </div>
                     )}
                   </div>
-                  <div className="p-2.5">
-                    <h3 className="text-xs font-semibold text-zinc-100 group-hover:text-brand truncate">
+
+                  {/* Card Info & Detail Trigger */}
+                  <div className="p-2.5 flex items-center justify-between gap-1.5 bg-dark-surface">
+                    <h3
+                      onClick={(e) => handleDirectPlayMovie(movie, e)}
+                      className="text-xs font-semibold text-zinc-100 group-hover:text-brand truncate cursor-pointer flex-1"
+                    >
                       {movie.name}
                     </h3>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedMovie(movie);
+                      }}
+                      className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all cursor-pointer"
+                      title="Film Detayları"
+                    >
+                      <Info className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
               ))}
@@ -221,38 +353,88 @@ export function HomeView() {
             </div>
 
             <div className="flex gap-4 overflow-x-auto no-scrollbar py-2">
-              {trendingSeries.map((series) => (
-                <div
-                  key={series.series_id}
-                  onClick={() => setSelectedSeries(series)}
-                  className="group relative flex-none w-[140px] sm:w-[170px] bg-dark-surface rounded-2xl overflow-hidden border border-white/5 hover:border-brand/40 cursor-pointer transition-all duration-300 hover:-translate-y-1.5 shadow-md"
-                >
-                  <div className="relative aspect-[2/3] w-full bg-zinc-900 overflow-hidden">
-                    {series.cover ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={series.cover}
-                        alt={series.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                      />
-                    ) : (
-                      <Clapperboard className="w-8 h-8 text-zinc-700 m-auto mt-12" />
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-dark-surface via-transparent to-transparent opacity-80" />
-                    {series.rating && (
-                      <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-black/70 text-[10px] font-bold text-amber-400 flex items-center gap-1">
-                        <Star className="w-3 h-3 fill-amber-400" />
-                        {series.rating}
+              {trendingSeries.map((series) => {
+                const isLoadingThis = loadingSeriesId === series.series_id;
+
+                return (
+                  <div
+                    key={series.series_id}
+                    className="group relative flex-none w-[140px] sm:w-[170px] bg-dark-surface rounded-2xl overflow-hidden border border-white/5 hover:border-brand/40 transition-all duration-300 hover:-translate-y-1.5 shadow-md flex flex-col select-none"
+                  >
+                    {/* Poster Area: Clicking directly plays episode 1 */}
+                    <div
+                      onClick={(e) => handleDirectPlaySeries(series, e)}
+                      className="relative aspect-[2/3] w-full bg-zinc-900 overflow-hidden cursor-pointer"
+                    >
+                      {series.cover ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={series.cover}
+                          alt={series.name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          loading="lazy"
+                          onError={(e) => {
+                            (e.target as HTMLElement).style.display = "none";
+                          }}
+                        />
+                      ) : (
+                        <Clapperboard className="w-8 h-8 text-zinc-700 m-auto mt-12" />
+                      )}
+
+                      <div className="absolute inset-0 bg-gradient-to-t from-dark-surface via-transparent to-transparent opacity-80" />
+
+                      {/* Red Hover Play Button in Center or Loading Spinner */}
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none">
+                        {isLoadingThis ? (
+                          <div className="w-11 h-11 rounded-full bg-brand text-white flex items-center justify-center shadow-xl shadow-brand/60">
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                          </div>
+                        ) : (
+                          <div className="w-11 h-11 rounded-full bg-brand text-white flex items-center justify-center shadow-xl shadow-brand/60 group-hover:scale-110 active:scale-95 transition-all">
+                            <Play className="w-5 h-5 fill-white ml-0.5" />
+                          </div>
+                        )}
                       </div>
-                    )}
+
+                      {/* Loading Badge */}
+                      {isLoadingThis && (
+                        <div className="absolute inset-x-0 bottom-3 px-2 flex justify-center">
+                          <span className="px-2 py-0.5 rounded-full bg-black/85 text-[10px] text-brand font-bold animate-pulse border border-brand/40 shadow-lg">
+                            Bölüm 1 Hazırlanıyor...
+                          </span>
+                        </div>
+                      )}
+
+                      {series.rating && (
+                        <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-black/70 text-[10px] font-bold text-amber-400 flex items-center gap-1">
+                          <Star className="w-3 h-3 fill-amber-400" />
+                          {series.rating}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Card Info & Detail Trigger */}
+                    <div className="p-2.5 flex items-center justify-between gap-1.5 bg-dark-surface">
+                      <h3
+                        onClick={(e) => handleDirectPlaySeries(series, e)}
+                        className="text-xs font-semibold text-zinc-100 group-hover:text-brand truncate cursor-pointer flex-1"
+                      >
+                        {series.name}
+                      </h3>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedSeries(series);
+                        }}
+                        className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all cursor-pointer text-[10px] flex items-center gap-0.5"
+                        title="Bölümleri Gör"
+                      >
+                        <Info className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
-                  <div className="p-2.5">
-                    <h3 className="text-xs font-semibold text-zinc-100 group-hover:text-brand truncate">
-                      {series.name}
-                    </h3>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </section>
         )}

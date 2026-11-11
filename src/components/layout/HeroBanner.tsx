@@ -1,30 +1,43 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useApp } from "@/context/AppContext";
 import { Play, Info, Star, Plus, Check } from "lucide-react";
 import { MovieDetailModal } from "@/components/vod/MovieDetailModal";
 import { VodStream } from "@/types/iptv";
 
+const DEFAULT_FEATURED: VodStream = {
+  num: 1,
+  name: "Dune: Çöl Gezegeni Bölüm İki (2024)",
+  stream_type: "movie",
+  stream_id: 201,
+  stream_icon: "https://images.unsplash.com/photo-1534447677768-be436bb09401?w=500&auto=format&fit=crop&q=80",
+  rating: "8.6",
+  rating_5based: 4.3,
+  added: "1709251200",
+  category_id: "11",
+  container_extension: "mp4",
+  custom_sid: "",
+  direct_source: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4",
+};
+
 export function HeroBanner() {
   const { playMedia, xtreamService, isFavorite, toggleFavorite } = useApp();
   const [showDetail, setShowDetail] = useState(false);
+  const [featuredMovie, setFeaturedMovie] = useState<VodStream>(DEFAULT_FEATURED);
 
-  // Featured content: Dune Part Two
-  const featuredMovie: VodStream = {
-    num: 1,
-    name: "Dune: Çöl Gezegeni Bölüm İki (2024)",
-    stream_type: "movie",
-    stream_id: 201,
-    stream_icon: "https://images.unsplash.com/photo-1534447677768-be436bb09401?w=500&auto=format&fit=crop&q=80",
-    rating: "8.6",
-    rating_5based: 4.3,
-    added: "1709251200",
-    category_id: "11",
-    container_extension: "mp4",
-    custom_sid: "",
-    direct_source: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4",
-  };
+  useEffect(() => {
+    if (!xtreamService) return;
+    xtreamService
+      .getVodStreams()
+      .then((movies) => {
+        if (movies && movies.length > 0) {
+          const valid = movies.find((m) => m.stream_icon && m.stream_icon.startsWith("http")) || movies[0];
+          setFeaturedMovie(valid);
+        }
+      })
+      .catch(() => {});
+  }, [xtreamService]);
 
   const favId = `movie-${featuredMovie.stream_id}`;
   const isFav = isFavorite(favId);
@@ -38,13 +51,15 @@ export function HeroBanner() {
     playMedia({
       id: favId,
       title: featuredMovie.name,
-      subtitle: "2024 • 4K Ultra HD",
+      subtitle: featuredMovie.rating ? `IMDB: ${featuredMovie.rating}` : "4K Ultra HD",
       poster: featuredMovie.stream_icon,
       streamUrl: url,
       type: "movie",
       contentId: featuredMovie.stream_id,
     });
   };
+
+  const bannerBg = featuredMovie.stream_icon || "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=1920&auto=format&fit=crop&q=85";
 
   return (
     <>
@@ -53,9 +68,12 @@ export function HeroBanner() {
         <div className="absolute inset-0">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=1920&auto=format&fit=crop&q=85"
-            alt="Dune 2"
+            src={bannerBg}
+            alt={featuredMovie.name}
             className="w-full h-full object-cover object-center scale-105 animate-pulse-slow"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=1920&auto=format&fit=crop&q=85";
+            }}
           />
           {/* Multi-layered cinematic gradients */}
           <div className="absolute inset-0 bg-gradient-hero" />
@@ -70,28 +88,21 @@ export function HeroBanner() {
               <span className="px-2 py-0.5 rounded-full bg-brand text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-white shadow-lg shadow-brand/40">
                 Günün Öne Çıkanı
               </span>
-              <span className="flex items-center gap-1 text-[11px] sm:text-xs font-bold text-amber-400 bg-black/60 px-2 py-0.5 rounded-full border border-white/10">
-                <Star className="w-3 h-3 sm:w-3.5 sm:h-3.5 fill-amber-400" />
-                8.6 IMDB
-              </span>
+              {featuredMovie.rating && (
+                <span className="flex items-center gap-1 text-[11px] sm:text-xs font-bold text-amber-400 bg-black/60 px-2 py-0.5 rounded-full border border-white/10">
+                  <Star className="w-3 h-3 sm:w-3.5 sm:h-3.5 fill-amber-400" />
+                  {featuredMovie.rating} IMDB
+                </span>
+              )}
               <span className="text-[11px] sm:text-xs text-zinc-300 font-semibold bg-white/10 px-2 py-0.5 rounded-full border border-white/10">
                 4K Ultra HD
               </span>
             </div>
 
             {/* Title */}
-            <h1 className="text-2xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight leading-tight drop-shadow-md">
-              Dune: Çöl Gezegeni
-              <span className="block text-brand text-xl sm:text-4xl lg:text-5xl font-extrabold mt-0.5 sm:mt-1">
-                Bölüm İki
-              </span>
+            <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight drop-shadow-md line-clamp-2">
+              {featuredMovie.name}
             </h1>
-
-            {/* Plot */}
-            <p className="text-xs sm:text-sm text-zinc-300 line-clamp-2 sm:line-clamp-3 leading-relaxed drop-shadow max-w-xl">
-              Paul Atreides, ailesini yok eden komploculara karşı Fremen halkı ile birleşir.
-              Evrenin kaderi ile aşkı arasında yapacağı seçim, insanlığın geleceğini belirleyecektir.
-            </p>
 
             {/* Actions */}
             <div className="flex flex-wrap items-center gap-2 sm:gap-3 pt-1 sm:pt-2">
@@ -99,16 +110,16 @@ export function HeroBanner() {
                 onClick={handlePlay}
                 className="py-2.5 px-4 sm:py-3 sm:px-6 bg-brand hover:bg-brand-600 text-white font-bold rounded-xl flex items-center gap-2 text-xs sm:text-sm shadow-xl shadow-brand/40 hover:shadow-brand/60 transition-all cursor-pointer hover:scale-105 active:scale-95"
               >
-                <Play className="w-4 h-4 sm:w-5 sm:h-5 fill-white" />
-                <span>Hemen Oynat</span>
+                <Play className="w-4 h-4 fill-white" />
+                <span>Hemen İzle</span>
               </button>
 
               <button
                 onClick={() => setShowDetail(true)}
-                className="py-2.5 px-3.5 sm:py-3 sm:px-5 bg-white/15 hover:bg-white/25 text-white font-semibold rounded-xl flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm border border-white/20 backdrop-blur-md transition-all cursor-pointer active:scale-95"
+                className="py-2.5 px-3.5 sm:py-3 sm:px-5 bg-white/15 hover:bg-white/25 text-white font-medium rounded-xl flex items-center gap-2 text-xs sm:text-sm backdrop-blur-md transition-all cursor-pointer hover:scale-105 active:scale-95 border border-white/10"
               >
-                <Info className="w-4 h-4 sm:w-5 sm:h-5" />
-                <span>Bilgi</span>
+                <Info className="w-4 h-4" />
+                <span>Detaylar</span>
               </button>
 
               <button
@@ -119,19 +130,18 @@ export function HeroBanner() {
                     name: featuredMovie.name,
                     streamId: featuredMovie.stream_id,
                     icon: featuredMovie.stream_icon,
-                    rating: featuredMovie.rating,
-                    container_extension: featuredMovie.container_extension,
+                    rating: typeof featuredMovie.rating === "number" ? String(featuredMovie.rating) : featuredMovie.rating,
                     addedAt: Date.now(),
                   })
                 }
-                className={`p-2.5 sm:p-3 rounded-xl border backdrop-blur-md transition-all cursor-pointer active:scale-95 ${
+                className={`p-2.5 sm:p-3 rounded-xl border backdrop-blur-md transition-all cursor-pointer hover:scale-105 active:scale-95 ${
                   isFav
                     ? "bg-brand/20 border-brand text-brand"
-                    : "bg-black/40 border-white/20 text-white hover:bg-white/15"
+                    : "bg-black/40 border-white/10 text-white hover:bg-black/60"
                 }`}
-                title={isFav ? "Listemden Çıkar" : "Listeme Ekle"}
+                title={isFav ? "Favorilerden Çıkar" : "Favorilere Ekle"}
               >
-                {isFav ? <Check className="w-4 h-4 sm:w-5 sm:h-5 text-brand" /> : <Plus className="w-4 h-4 sm:w-5 sm:h-5" />}
+                {isFav ? <Check className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
               </button>
             </div>
           </div>

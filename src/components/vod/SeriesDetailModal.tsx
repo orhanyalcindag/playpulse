@@ -65,6 +65,18 @@ export function SeriesDetailModal({ series, onClose }: SeriesDetailModalProps) {
   const handlePlayFirstEpisode = () => {
     if (episodesInSeason.length > 0) {
       handlePlayEpisode(episodesInSeason[0], 0);
+      return;
+    }
+
+    // Fallback: search across all seasons in seriesInfo.episodes
+    if (seriesInfo?.episodes) {
+      for (const seasonKey of Object.keys(seriesInfo.episodes)) {
+        const eps = seriesInfo.episodes[seasonKey];
+        if (eps && eps.length > 0) {
+          handlePlayEpisode(eps[0], 0);
+          return;
+        }
+      }
     }
   };
 
