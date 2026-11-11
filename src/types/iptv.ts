@@ -214,6 +214,7 @@ export interface SeriesInfoResponse {
     rating?: string | number;
     backdrop_path?: string[];
     episode_run_time?: string;
+    youtube_trailer?: string;
   };
   episodes: {
     [seasonNum: string]: EpisodeItem[];
@@ -272,4 +273,21 @@ export interface PlayingMedia {
     episodeId: string;
     poster?: string;
   };
+}
+
+export interface EpgListing {
+  id: string;
+  epg_id?: string;
+  title: string;
+  lang?: string;
+  start: string;
+  end: string;
+  description?: string;
+  channel_id?: string;
+  start_timestamp?: number;
+  stop_timestamp?: number;
+}
+
+export interface EpgResponse {
+  epg_listings: EpgListing[];
 }

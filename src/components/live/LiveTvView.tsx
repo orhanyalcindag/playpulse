@@ -13,8 +13,10 @@ import {
   Loader2,
   ChevronDown,
   Lock,
+  Calendar,
 } from "lucide-react";
 import { CategorySelector } from "@/components/ui/CategorySelector";
+import { EpgScheduleModal } from "./EpgScheduleModal";
 
 const PAGE_SIZE = 30;
 
@@ -36,6 +38,7 @@ export function LiveTvView() {
   const [visibleCount, setVisibleCount] = useState<number>(PAGE_SIZE);
   const [isLoadingCategories, setIsLoadingCategories] = useState<boolean>(true);
   const [isLoadingStreams, setIsLoadingStreams] = useState<boolean>(true);
+  const [selectedEpgChannel, setSelectedEpgChannel] = useState<LiveStream | null>(null);
 
   // Load Categories on mount
   useEffect(() => {
@@ -125,7 +128,7 @@ export function LiveTvView() {
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 animate-fade-in pb-24 overflow-x-hidden">
+    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 animate-fade-in pb-24 md:pb-10 overflow-x-hidden">
       {/* Top Banner / Heading */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
@@ -198,6 +201,11 @@ export function LiveTvView() {
                   onClick={() => handlePlayChannel(stream)}
                   className="group relative bg-dark-surface hover:bg-dark-elevated rounded-2xl p-3 border border-dark-border hover:border-brand/50 transition-all duration-300 shadow-sm hover:shadow-xl hover:shadow-brand/10 hover:-translate-y-1 cursor-pointer flex flex-col items-center text-center select-none"
                 >
+                  {/* Channel Number Badge */}
+                  <span className="absolute top-2 left-2 px-1.5 py-0.5 rounded-md bg-black/60 border border-white/10 text-[9px] font-mono font-bold text-zinc-300 z-10">
+                    #{stream.num || stream.stream_id}
+                  </span>
+
                   {/* Favorite Heart Button */}
                   <button
                     type="button"
@@ -223,7 +231,7 @@ export function LiveTvView() {
                   </button>
 
                   {/* Channel Logo Container */}
-                  <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-zinc-900/90 flex items-center justify-center p-2 mb-3 overflow-hidden border border-white/5 group-hover:border-brand/40 transition-colors">
+                  <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-zinc-900/90 flex items-center justify-center p-2 mb-2.5 overflow-hidden border border-white/5 group-hover:border-brand/40 transition-colors">
                     {stream.stream_icon ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -255,11 +263,27 @@ export function LiveTvView() {
                     {stream.name}
                   </h3>
 
-                  {/* Live Indicator Pill */}
-                  <span className="mt-2 text-[10px] text-zinc-400 group-hover:text-zinc-300 flex items-center gap-1 font-medium">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                    Canlı
-                  </span>
+                  {/* Actions & Badges */}
+                  <div className="mt-2 flex items-center gap-1.5">
+                    <span className="text-[10px] text-zinc-400 group-hover:text-zinc-300 flex items-center gap-1 font-medium">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      Canlı
+                    </span>
+
+                    {/* EPG Schedule Button */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedEpgChannel(stream);
+                      }}
+                      className="text-[10px] text-zinc-400 hover:text-white px-1.5 py-0.5 rounded-md bg-zinc-800/80 hover:bg-zinc-700 border border-white/5 flex items-center gap-1 transition-all cursor-pointer"
+                      title="Yayın Akışını Görüntüle"
+                    >
+                      <Calendar className="w-3 h-3 text-brand" />
+                      <span>Akış</span>
+                    </button>
+                  </div>
                 </div>
               );
             })}
@@ -283,6 +307,15 @@ export function LiveTvView() {
             </div>
           )}
         </>
+      )}
+
+      {/* EPG Schedule Modal */}
+      {selectedEpgChannel && (
+        <EpgScheduleModal
+          channel={selectedEpgChannel}
+          onClose={() => setSelectedEpgChannel(null)}
+          onPlay={handlePlayChannel}
+        />
       )}
     </div>
   );

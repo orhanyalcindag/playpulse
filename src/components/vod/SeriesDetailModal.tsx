@@ -16,7 +16,9 @@ import {
   Loader2,
   Tv,
   Calendar,
+  Film,
 } from "lucide-react";
+import { YouTubeTrailerModal } from "./YouTubeTrailerModal";
 
 interface SeriesDetailModalProps {
   series: SeriesItem;
@@ -38,6 +40,7 @@ export function SeriesDetailModal({ series, onClose }: SeriesDetailModalProps) {
   const [selectedSeason, setSelectedSeason] = useState<string>("1");
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [mounted, setMounted] = useState<boolean>(false);
+  const [showTrailer, setShowTrailer] = useState<boolean>(false);
 
   useEffect(() => {
     setMounted(true);
@@ -194,6 +197,16 @@ export function SeriesDetailModal({ series, onClose }: SeriesDetailModalProps) {
             >
               <Play className="w-5 h-5 fill-white" />
               <span>1. Bölümü Başlat</span>
+            </button>
+
+            {/* Fragman Button */}
+            <button
+              onClick={() => setShowTrailer(true)}
+              className="py-3 px-4 bg-white/15 hover:bg-white/25 text-white font-bold rounded-xl flex items-center gap-2 text-xs sm:text-sm backdrop-blur-md transition-all cursor-pointer hover:scale-105 active:scale-95 border border-white/15"
+              title="Resmi YouTube Fragmanını İzle"
+            >
+              <Film className="w-4 h-4 text-amber-400" />
+              <span>Fragman</span>
             </button>
 
             <button
@@ -443,6 +456,17 @@ export function SeriesDetailModal({ series, onClose }: SeriesDetailModalProps) {
           </div>
         </div>
       </div>
+
+      {/* Official YouTube Trailer Modal */}
+      {showTrailer && (
+        <YouTubeTrailerModal
+          isOpen={showTrailer}
+          onClose={() => setShowTrailer(false)}
+          title={series.name}
+          youtubeId={seriesInfo?.info?.youtube_trailer}
+          year={seriesInfo?.info?.releaseDate?.slice(0, 4)}
+        />
+      )}
     </div>,
     document.body
   );

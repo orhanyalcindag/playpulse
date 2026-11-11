@@ -23,6 +23,7 @@ import {
   Gauge,
   PictureInPicture,
   FastForward,
+  HelpCircle,
 } from "lucide-react";
 import { formatSecondsToTime } from "@/lib/utils";
 import { NextEpisodeCountdown } from "./NextEpisodeCountdown";
@@ -32,6 +33,7 @@ import {
   SubtitleTrackOption,
 } from "./SubtitleAudioModal";
 import { InPlayerEpisodesDrawer } from "./InPlayerEpisodesDrawer";
+import { KeyboardShortcutsModal } from "./KeyboardShortcutsModal";
 import {
   SubtitleCue,
   SubtitleSettings,
@@ -109,6 +111,9 @@ export function VideoPlayerModal() {
 
   // In-Player Episodes Drawer
   const [isEpisodesDrawerOpen, setIsEpisodesDrawerOpen] = useState<boolean>(false);
+  const [isShortcutsModalOpen, setIsShortcutsModalOpen] = useState<boolean>(false);
+  const [zappingInput, setZappingInput] = useState<string>("");
+  const zappingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastProgressSaveRef = useRef<number>(0);
@@ -515,6 +520,20 @@ export function VideoPlayerModal() {
         return;
       }
 
+      // Number keys for Live TV channel zapping
+      if (playingMedia?.type === "live" && /^[0-9]$/.test(e.key)) {
+        e.preventDefault();
+        setZappingInput((prev) => {
+          const next = (prev + e.key).slice(0, 4);
+          if (zappingTimeoutRef.current) clearTimeout(zappingTimeoutRef.current);
+          zappingTimeoutRef.current = setTimeout(() => {
+            setZappingInput("");
+          }, 1500);
+          return next;
+        });
+        return;
+      }
+
       switch (e.key) {
         case " ":
         case "k":
@@ -533,10 +552,14 @@ export function VideoPlayerModal() {
           toggleMute();
           break;
         case "ArrowLeft":
+        case "j":
+        case "J":
           e.preventDefault();
           handleSkip(-10);
           break;
         case "ArrowRight":
+        case "l":
+        case "L":
           e.preventDefault();
           handleSkip(10);
           break;
@@ -562,7 +585,14 @@ export function VideoPlayerModal() {
         case "S":
           if (playingMedia?.type !== "live") {
             e.preventDefault();
-            handleSkipIntro();
+            toggleAudioMode();
+          }
+          break;
+        case "a":
+        case "A":
+          if (playingMedia?.type !== "live") {
+            e.preventDefault();
+            toggleAudioMode();
           }
           break;
         case "c":
@@ -570,8 +600,15 @@ export function VideoPlayerModal() {
           e.preventDefault();
           setActiveSubtitleTrack((prev) => (prev === "none" ? "custom" : "none"));
           break;
+        case "?":
+          e.preventDefault();
+          setIsShortcutsModalOpen((prev) => !prev);
+          break;
         case "Escape":
-          if (isEpisodesDrawerOpen) {
+          if (isShortcutsModalOpen) {
+            e.preventDefault();
+            setIsShortcutsModalOpen(false);
+          } else if (isEpisodesDrawerOpen) {
             e.preventDefault();
             setIsEpisodesDrawerOpen(false);
           } else if (isSubtitleModalOpen) {
@@ -588,13 +625,17 @@ export function VideoPlayerModal() {
     };
 
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      if (zappingTimeoutRef.current) clearTimeout(zappingTimeoutRef.current);
+    };
   }, [
     isPlaying,
     isMuted,
     volume,
     isEpisodesDrawerOpen,
     isSubtitleModalOpen,
+    isShortcutsModalOpen,
     showSpeedMenu,
     playingMedia,
   ]);
@@ -928,6 +969,16 @@ export function VideoPlayerModal() {
         />
       )}
 
+      {/* On-screen Zapping Channel Number HUD (Live TV) */}
+      {zappingInput && (
+        <div className="absolute top-20 left-6 z-40 px-5 py-3 rounded-2xl bg-black/90 border-2 border-brand text-white shadow-2xl flex items-center gap-3 animate-pulse">
+          <div className="text-left">
+            <span className="text-[10px] text-zinc-400 uppercase font-bold block">Kanal No</span>
+            <span className="text-2xl font-black text-brand font-mono tracking-wider">{zappingInput}</span>
+          </div>
+        </div>
+      )}
+
       {/* Floating Unmute Banner if video started muted */}
       {isMuted && isPlaying && !playbackError && (
         <button
@@ -935,10 +986,10 @@ export function VideoPlayerModal() {
             e.stopPropagation();
             toggleMute();
           }}
-          className="absolute top-20 left-1/2 -translate-x-1/2 z-30 py-2 px-4 rounded-full bg-brand/95 hover:bg-brand text-white text-xs font-bold flex items-center gap-2 shadow-2xl shadow-brand/70 animate-bounce cursor-pointer border border-white/20 active:scale-95"
+          className="absolute bottom-24 sm:bottom-28 right-4 sm:right-8 z-30 py-2.5 px-4 rounded-full bg-brand text-white text-xs font-bold flex items-center gap-2 shadow-2xl shadow-brand/70 animate-bounce cursor-pointer border border-white/20 active:scale-95"
         >
           <VolumeX className="w-4 h-4" />
-          <span>Sesi Açmak İçin Dokunun</span>
+          <span>Sesi Aç</span>
         </button>
       )}
 
@@ -1187,6 +1238,15 @@ export function VideoPlayerModal() {
               <PictureInPicture className="w-5 h-5" />
             </button>
 
+            {/* Keyboard Shortcuts Help Trigger */}
+            <button
+              onClick={() => setIsShortcutsModalOpen(true)}
+              className="p-2 text-zinc-400 hover:text-white transition-colors cursor-pointer hidden md:block"
+              title="Klavye Kısayolları (?)"
+            >
+              <HelpCircle className="w-5 h-5" />
+            </button>
+
             {/* Fullscreen Toggle */}
             <button
               onClick={toggleFullscreen}
@@ -1236,6 +1296,12 @@ export function VideoPlayerModal() {
           onSelectEpisode={handleSelectDrawerEpisode}
         />
       )}
+
+      {/* Keyboard Shortcuts Guide Modal */}
+      <KeyboardShortcutsModal
+        isOpen={isShortcutsModalOpen}
+        onClose={() => setIsShortcutsModalOpen(false)}
+      />
     </div>
   );
 }

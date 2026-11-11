@@ -18,8 +18,10 @@ import {
   Users,
   Volume2,
   Tv,
+  Download,
 } from "lucide-react";
 import { formatSecondsToTime } from "@/lib/utils";
+import { YouTubeTrailerModal } from "./YouTubeTrailerModal";
 
 interface MovieDetailModalProps {
   movie: VodStream;
@@ -32,6 +34,7 @@ export function MovieDetailModal({ movie, onClose }: MovieDetailModalProps) {
   const [vodInfo, setVodInfo] = useState<VodInfo | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [mounted, setMounted] = useState<boolean>(false);
+  const [showTrailer, setShowTrailer] = useState<boolean>(false);
 
   useEffect(() => {
     setMounted(true);
@@ -149,6 +152,16 @@ export function MovieDetailModal({ movie, onClose }: MovieDetailModalProps) {
               <span>{progress && progress.currentTime > 5 ? "Kaldığın Yerden İzle" : "Filmi Başlat"}</span>
             </button>
 
+            {/* Trailer Button */}
+            <button
+              onClick={() => setShowTrailer(true)}
+              className="py-3 px-4 bg-white/15 hover:bg-white/25 text-white font-bold rounded-xl flex items-center gap-2 text-xs sm:text-sm backdrop-blur-md transition-all cursor-pointer hover:scale-105 active:scale-95 border border-white/15"
+              title="Resmi YouTube Fragmanını İzle"
+            >
+              <Film className="w-4 h-4 text-amber-400" />
+              <span>Fragman</span>
+            </button>
+
             <button
               onClick={() =>
                 toggleFavorite({
@@ -172,6 +185,19 @@ export function MovieDetailModal({ movie, onClose }: MovieDetailModalProps) {
               <Heart className={`w-4 h-4 ${isFav ? "fill-brand" : ""}`} />
               <span className="hidden sm:inline">{isFav ? "Favorilerimde" : "Favorilere Ekle"}</span>
             </button>
+
+            {/* Direct Download Button */}
+            <a
+              href={xtreamService?.getMovieStreamUrl(movie.stream_id, movie.container_extension || "mp4")}
+              download={`${movie.name}.${movie.container_extension || "mp4"}`}
+              className="p-3 rounded-xl border border-white/15 bg-black/60 hover:bg-black/80 text-zinc-300 hover:text-white transition-all cursor-pointer flex items-center gap-1.5 text-xs font-semibold backdrop-blur-md hidden sm:flex"
+              title="Filmi Doğrudan İndir"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Download className="w-4 h-4 text-emerald-400" />
+              <span>İndir</span>
+            </a>
           </div>
         </div>
 
@@ -316,6 +342,17 @@ export function MovieDetailModal({ movie, onClose }: MovieDetailModalProps) {
           )}
         </div>
       </div>
+
+      {/* Official YouTube Trailer Modal */}
+      {showTrailer && (
+        <YouTubeTrailerModal
+          isOpen={showTrailer}
+          onClose={() => setShowTrailer(false)}
+          title={movie.name}
+          youtubeId={vodInfo?.info?.youtube_trailer}
+          year={vodInfo?.info?.releasedate?.slice(0, 4)}
+        />
+      )}
     </div>,
     document.body
   );

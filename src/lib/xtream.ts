@@ -9,6 +9,8 @@ import {
   SeriesCategory,
   SeriesItem,
   SeriesInfoResponse,
+  EpgResponse,
+  EpgListing,
 } from "@/types/iptv";
 import {
   MOCK_AUTH_RESPONSE,
@@ -157,6 +159,75 @@ export class XtreamService {
     const directUrl = this.buildApiUrl("get_live_streams", params);
     const data = await this.fetchViaProxy<LiveStream[]>(directUrl);
     return Array.isArray(data) ? data : [];
+  }
+
+  // 2.1 EPG (Electronic Program Guide / Yayın Akışı)
+  async getShortEpg(streamId: number, limit = 6): Promise<EpgListing[]> {
+    if (this.isDemo) {
+      const now = new Date();
+      const pad = (n: number) => n.toString().padStart(2, "0");
+      const makeTime = (offsetHours: number) => {
+        const d = new Date(now.getTime() + offsetHours * 3600 * 1000);
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:00:00`;
+      };
+      return [
+        {
+          id: "epg-1",
+          title: "Günün Manşeti & Canlı Yayın",
+          start: makeTime(0),
+          end: makeTime(1),
+          description: "Gündemin öne çıkan sıcak gelişmeleri ve canlı bağlantılar.",
+        },
+        {
+          id: "epg-2",
+          title: "Sinema Kuşağı: Aksiyon / Gerilim",
+          start: makeTime(1),
+          end: makeTime(3),
+          description: "Ödüllü yapımlar ve sinema dünyasının klasikleri PlayPulse ekranlarında.",
+        },
+        {
+          id: "epg-3",
+          title: "Spor Özel: Maç Özeti & Analiz",
+          start: makeTime(3),
+          end: makeTime(4),
+          description: "Haftanın en çok konuşulan karşılaşmaları ve golleri.",
+        },
+      ];
+    }
+
+    try {
+      const directUrl = this.buildApiUrl("get_short_epg", { stream_id: streamId, limit });
+      const data = await this.fetchViaProxy<EpgResponse>(directUrl);
+      if (data && Array.isArray(data.epg_listings)) {
+        return data.epg_listings.map((item) => {
+          // Decode base64 titles/descriptions if encoded by Xtream
+          let decodedTitle = item.title;
+          try {
+            if (/^[A-Za-z0-9+/=]+$/.test(item.title) && item.title.length % 4 === 0) {
+              const decoded = decodeURIComponent(escape(atob(item.title)));
+              if (decoded && decoded.trim().length > 0) decodedTitle = decoded;
+            }
+          } catch {}
+
+          let decodedDesc = item.description || "";
+          try {
+            if (decodedDesc && /^[A-Za-z0-9+/=]+$/.test(decodedDesc) && decodedDesc.length % 4 === 0) {
+              const decoded = decodeURIComponent(escape(atob(decodedDesc)));
+              if (decoded && decoded.trim().length > 0) decodedDesc = decoded;
+            }
+          } catch {}
+
+          return {
+            ...item,
+            title: decodedTitle,
+            description: decodedDesc,
+          };
+        });
+      }
+      return [];
+    } catch {
+      return [];
+    }
   }
 
   // 3. VOD (Movies)
