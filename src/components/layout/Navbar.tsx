@@ -15,6 +15,8 @@ import {
   User,
   Clock,
   Sparkles,
+  Settings,
+  Crown,
 } from "lucide-react";
 
 export function Navbar() {
@@ -26,6 +28,8 @@ export function Navbar() {
     favorites,
     setSearchOpen,
     credentials,
+    activeProfile,
+    setIsProfileManagerOpen,
   } = useApp();
 
   const navItems: { id: ActiveTab; label: string; icon: React.ReactNode }[] = [
@@ -105,7 +109,7 @@ export function Navbar() {
         </div>
 
         {/* Right Action Icons & User Profile */}
-        <div className="flex items-center gap-2.5 sm:gap-3">
+        <div className="flex items-center gap-2 sm:gap-2.5">
           {/* Search Trigger */}
           <button
             onClick={() => setSearchOpen(true)}
@@ -115,11 +119,35 @@ export function Navbar() {
             <Search className="w-4 h-4" />
           </button>
 
+          {/* Profile Switcher & Settings Button */}
+          <button
+            onClick={() => setIsProfileManagerOpen(true)}
+            className="p-2.5 rounded-xl bg-zinc-800/80 hover:bg-zinc-700/80 text-zinc-300 hover:text-white border border-zinc-700/50 transition-all cursor-pointer"
+            title="IPTV Profillerini ve Hesapları Yönet"
+          >
+            <Settings className="w-4 h-4 text-zinc-300 hover:text-brand" />
+          </button>
+
           {/* User Status / Account pill */}
-          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-dark-elevated border border-dark-border text-xs">
-            <User className="w-3.5 h-3.5 text-brand" />
-            <span className="font-medium text-zinc-200 truncate max-w-[110px]">
-              {userInfo?.username || credentials?.username || "Kullanıcı"}
+          <button
+            onClick={() => setIsProfileManagerOpen(true)}
+            className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-dark-elevated border border-dark-border hover:border-brand/40 text-xs transition-all cursor-pointer text-left"
+            title="Profil Değiştir veya Yönet"
+          >
+            <div
+              className={`w-5 h-5 rounded-md bg-gradient-to-tr ${
+                activeProfile?.color || "from-purple-600 to-rose-600"
+              } flex items-center justify-center text-white text-[10px] font-bold`}
+            >
+              {activeProfile?.serverUrl.includes("eu4tv.com") ? (
+                <Crown className="w-3 h-3" />
+              ) : (
+                <User className="w-3 h-3" />
+              )}
+            </div>
+
+            <span className="font-semibold text-zinc-200 truncate max-w-[120px]">
+              {activeProfile?.name || userInfo?.username || credentials?.username || "VIP Kullanıcı"}
             </span>
 
             {isDemo ? (
@@ -133,13 +161,13 @@ export function Navbar() {
                 {expDateString}
               </span>
             ) : null}
-          </div>
+          </button>
 
           {/* Logout */}
           <button
             onClick={logout}
             className="p-2.5 rounded-xl bg-zinc-800/80 hover:bg-red-950/80 text-zinc-400 hover:text-red-400 border border-zinc-700/50 hover:border-red-800/50 transition-all cursor-pointer"
-            title="Çıkış Yap"
+            title="Profilden Çıkış Yap"
           >
             <LogOut className="w-4 h-4" />
           </button>

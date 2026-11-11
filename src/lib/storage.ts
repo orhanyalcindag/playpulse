@@ -1,7 +1,15 @@
-import { XtreamCredentials, FavoriteItem, WatchProgressItem } from "@/types/iptv";
+import {
+  XtreamCredentials,
+  FavoriteItem,
+  WatchProgressItem,
+  XtreamProfile,
+  DEFAULT_PROFILES,
+} from "@/types/iptv";
 
 const STORAGE_KEYS = {
   CREDENTIALS: "playpulse_credentials",
+  PROFILES: "playpulse_profiles",
+  ACTIVE_PROFILE_ID: "playpulse_active_profile_id",
   FAVORITES: "playpulse_favorites",
   WATCH_PROGRESS: "playpulse_watch_progress",
   WATCHED_EPISODES: "playpulse_watched_episodes",
@@ -9,6 +17,63 @@ const STORAGE_KEYS = {
 };
 
 export const StorageService = {
+  // Profiles
+  getProfiles(): XtreamProfile[] {
+    if (typeof window === "undefined") return DEFAULT_PROFILES;
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.PROFILES);
+      if (!data) {
+        this.saveProfiles(DEFAULT_PROFILES);
+        return DEFAULT_PROFILES;
+      }
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        // Ensure default VIP profile is always included if missing
+        const hasVip = parsed.some((p) => p.serverUrl.includes("eu4tv.com"));
+        if (!hasVip) {
+          const merged = [...DEFAULT_PROFILES, ...parsed];
+          this.saveProfiles(merged);
+          return merged;
+        }
+        return parsed;
+      }
+      return DEFAULT_PROFILES;
+    } catch {
+      return DEFAULT_PROFILES;
+    }
+  },
+
+  saveProfiles(profiles: XtreamProfile[]): void {
+    if (typeof window === "undefined") return;
+    try {
+      localStorage.setItem(STORAGE_KEYS.PROFILES, JSON.stringify(profiles));
+    } catch (e) {
+      console.error("Failed to save profiles", e);
+    }
+  },
+
+  getActiveProfileId(): string | null {
+    if (typeof window === "undefined") return null;
+    try {
+      return localStorage.getItem(STORAGE_KEYS.ACTIVE_PROFILE_ID);
+    } catch {
+      return null;
+    }
+  },
+
+  setActiveProfileId(id: string | null): void {
+    if (typeof window === "undefined") return;
+    try {
+      if (id) {
+        localStorage.setItem(STORAGE_KEYS.ACTIVE_PROFILE_ID, id);
+      } else {
+        localStorage.removeItem(STORAGE_KEYS.ACTIVE_PROFILE_ID);
+      }
+    } catch (e) {
+      console.error("Failed to set active profile id", e);
+    }
+  },
+
   // Credentials
   getCredentials(): XtreamCredentials | null {
     if (typeof window === "undefined") return null;

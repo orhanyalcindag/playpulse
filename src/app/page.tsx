@@ -12,7 +12,8 @@ import { SeriesView } from "@/components/vod/SeriesView";
 import { FavoritesView } from "@/components/favorites/FavoritesView";
 import { VideoPlayerModal } from "@/components/player/VideoPlayerModal";
 import { SearchModal } from "@/components/ui/SearchModal";
-import { Play, Loader2 } from "lucide-react";
+import { ProfileManagerModal } from "@/components/profile/ProfileManagerModal";
+import { Loader2 } from "lucide-react";
 
 export default function AppMain() {
   const { isAuthenticated, isLoadingAuth, activeTab } = useApp();
@@ -42,32 +43,37 @@ export default function AppMain() {
     );
   }
 
-  if (!isAuthenticated) {
-    return <LoginForm />;
-  }
-
   return (
-    <main className="min-h-screen bg-dark-bg text-zinc-100 flex flex-col">
-      {/* Top Navbar */}
-      <Navbar />
+    <>
+      {!isAuthenticated ? (
+        <LoginForm />
+      ) : (
+        <main className="min-h-screen bg-dark-bg text-zinc-100 flex flex-col">
+          {/* Top Navbar */}
+          <Navbar />
 
-      {/* Main Tab Content */}
-      <div className="flex-1 pb-20 md:pb-6">
-        {activeTab === "home" && <HomeView />}
-        {activeTab === "live" && <LiveTvView />}
-        {activeTab === "movies" && <MoviesView />}
-        {activeTab === "series" && <SeriesView />}
-        {activeTab === "favorites" && <FavoritesView />}
-      </div>
+          {/* Main Tab Content */}
+          <div className="flex-1 pb-20 md:pb-6">
+            {activeTab === "home" && <HomeView />}
+            {activeTab === "live" && <LiveTvView />}
+            {activeTab === "movies" && <MoviesView />}
+            {activeTab === "series" && <SeriesView />}
+            {activeTab === "favorites" && <FavoritesView />}
+          </div>
 
-      {/* Mobile Bottom Navigation */}
-      <BottomNav />
+          {/* Mobile Bottom Navigation */}
+          <BottomNav />
 
-      {/* Fullscreen Video Player Modal */}
-      <VideoPlayerModal />
+          {/* Fullscreen Video Player Modal */}
+          <VideoPlayerModal />
 
-      {/* Global Search Modal */}
-      <SearchModal />
-    </main>
+          {/* Global Search Modal */}
+          <SearchModal />
+        </main>
+      )}
+
+      {/* Global Profile & Xtream Accounts Manager Modal */}
+      <ProfileManagerModal />
+    </>
   );
 }

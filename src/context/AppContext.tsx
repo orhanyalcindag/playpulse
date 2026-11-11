@@ -9,6 +9,9 @@ import {
   WatchProgressItem,
   ActiveTab,
   PlayingMedia,
+  XtreamProfile,
+  DEFAULT_PROFILES,
+  XtreamAuthResponse,
 } from "@/types/iptv";
 import { StorageService } from "@/lib/storage";
 import { XtreamService } from "@/lib/xtream";
@@ -21,8 +24,19 @@ interface AppContextType {
   isLoadingAuth: boolean;
   activeTab: ActiveTab;
   setActiveTab: (tab: ActiveTab) => void;
-  login: (creds: XtreamCredentials) => Promise<void>;
+  login: (creds: XtreamCredentials, profileToActivate?: XtreamProfile) => Promise<void>;
   logout: () => void;
+
+  // Profiles Management
+  profiles: XtreamProfile[];
+  activeProfile: XtreamProfile | null;
+  selectProfile: (profile: XtreamProfile) => Promise<void>;
+  addProfile: (profile: Omit<XtreamProfile, "id" | "createdAt">) => Promise<XtreamProfile>;
+  updateProfile: (id: string, updates: Partial<XtreamProfile>) => void;
+  deleteProfile: (id: string) => void;
+  testProfileConnection: (creds: XtreamCredentials) => Promise<XtreamAuthResponse>;
+  isProfileManagerOpen: boolean;
+  setIsProfileManagerOpen: (open: boolean) => void;
 
   // Favorites
   favorites: Record<string, FavoriteItem>;
@@ -61,6 +75,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [isLoadingAuth, setIsLoadingAuth] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<ActiveTab>("home");
 
+  // Profiles
+  const [profiles, setProfiles] = useState<XtreamProfile[]>(DEFAULT_PROFILES);
+  const [activeProfile, setActiveProfile] = useState<XtreamProfile | null>(null);
+  const [isProfileManagerOpen, setIsProfileManagerOpen] = useState<boolean>(false);
+
   const [favorites, setFavorites] = useState<Record<string, FavoriteItem>>({});
   const [watchProgress, setWatchProgress] = useState<Record<string, WatchProgressItem>>({});
   const [watchedEpisodes, setWatchedEpisodes] = useState<Record<string, boolean>>({});
@@ -76,7 +95,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // Load initial data from localStorage on mount
   useEffect(() => {
+    const savedProfiles = StorageService.getProfiles();
+    setProfiles(savedProfiles);
+
     const savedCreds = StorageService.getCredentials();
+    const savedActiveId = StorageService.getActiveProfileId();
+    if (savedActiveId) {
+      const match = savedProfiles.find((p) => p.id === savedActiveId);
+      if (match) setActiveProfile(match);
+    }
+
     const savedFavs = StorageService.getFavorites();
     const savedProgress = StorageService.getWatchProgress();
     const savedEpisodes = StorageService.getWatchedEpisodes();
@@ -88,7 +116,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (savedCreds) {
       setCredentials(savedCreds);
       const service = new XtreamService(savedCreds);
-      
+
       // Safety timeout: max 3.5s on splash screen
       const timeoutId = setTimeout(() => {
         setIsLoadingAuth(false);
@@ -112,19 +140,86 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const login = async (creds: XtreamCredentials) => {
+  const login = async (creds: XtreamCredentials, profileToActivate?: XtreamProfile) => {
     const service = new XtreamService(creds);
     const authData = await service.authenticate();
     StorageService.saveCredentials(creds);
     setCredentials(creds);
     setUserInfo(authData.user_info);
     setServerInfo(authData.server_info);
+
+    if (profileToActivate) {
+      setActiveProfile(profileToActivate);
+      StorageService.setActiveProfileId(profileToActivate.id);
+    } else {
+      const existing = profiles.find(
+        (p) => p.serverUrl === creds.serverUrl && p.username === creds.username
+      );
+      if (existing) {
+        setActiveProfile(existing);
+        StorageService.setActiveProfileId(existing.id);
+      }
+    }
+
     setActiveTab("home");
+  };
+
+  const selectProfile = async (profile: XtreamProfile) => {
+    await login(
+      {
+        serverUrl: profile.serverUrl,
+        username: profile.username,
+        password: profile.password,
+        connectionMode: profile.connectionMode,
+      },
+      profile
+    );
+  };
+
+  const addProfile = async (
+    newProfileData: Omit<XtreamProfile, "id" | "createdAt">
+  ): Promise<XtreamProfile> => {
+    const newProfile: XtreamProfile = {
+      ...newProfileData,
+      id: `profile-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      createdAt: Date.now(),
+    };
+    const updated = [newProfile, ...profiles];
+    setProfiles(updated);
+    StorageService.saveProfiles(updated);
+    return newProfile;
+  };
+
+  const updateProfile = (id: string, updates: Partial<XtreamProfile>) => {
+    const updated = profiles.map((p) => (p.id === id ? { ...p, ...updates } : p));
+    setProfiles(updated);
+    StorageService.saveProfiles(updated);
+    if (activeProfile?.id === id) {
+      setActiveProfile((prev) => (prev ? { ...prev, ...updates } : null));
+    }
+  };
+
+  const deleteProfile = (id: string) => {
+    const updated = profiles.filter((p) => p.id !== id);
+    setProfiles(updated);
+    StorageService.saveProfiles(updated);
+    if (activeProfile?.id === id) {
+      setActiveProfile(null);
+      StorageService.setActiveProfileId(null);
+      logout();
+    }
+  };
+
+  const testProfileConnection = async (creds: XtreamCredentials): Promise<XtreamAuthResponse> => {
+    const service = new XtreamService(creds);
+    return await service.authenticate();
   };
 
   const logout = () => {
     StorageService.clearCredentials();
+    StorageService.setActiveProfileId(null);
     setCredentials(null);
+    setActiveProfile(null);
     setUserInfo(null);
     setServerInfo(null);
     setPlayingMedia(null);
@@ -157,7 +252,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         lastWatchedAt: Date.now(),
       } as WatchProgressItem;
 
-      // If user watched more than 92%, also mark episode as watched if it's an episode
+      // If user watched more than 90%, also mark episode as watched if it's an episode
       if (
         updatedItem.type === "series" &&
         updatedItem.seriesId &&
@@ -220,6 +315,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setActiveTab,
         login,
         logout,
+        profiles,
+        activeProfile,
+        selectProfile,
+        addProfile,
+        updateProfile,
+        deleteProfile,
+        testProfileConnection,
+        isProfileManagerOpen,
+        setIsProfileManagerOpen,
         favorites,
         toggleFavorite,
         isFavorite,

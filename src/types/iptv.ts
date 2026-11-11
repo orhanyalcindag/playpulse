@@ -5,6 +5,43 @@ export interface XtreamCredentials {
   connectionMode?: "proxy" | "direct";
 }
 
+export interface XtreamProfile {
+  id: string;
+  name: string;
+  serverUrl: string;
+  username: string;
+  password: string;
+  connectionMode?: "proxy" | "direct";
+  color?: string; // gradient color class e.g. "from-purple-600 via-pink-600 to-rose-600"
+  icon?: string;
+  createdAt: number;
+}
+
+export const DEFAULT_PROFILES: XtreamProfile[] = [
+  {
+    id: "profile-vip-main",
+    name: "PlayPulse VIP (Ana Hesap)",
+    serverUrl: "http://eu4tv.com:8080",
+    username: "p51v28e85x12",
+    password: "u34x27112022",
+    connectionMode: "proxy",
+    color: "from-purple-600 via-pink-600 to-rose-600",
+    icon: "crown",
+    createdAt: 1700000000000,
+  },
+  {
+    id: "profile-demo",
+    name: "Demo Test Hesabı",
+    serverUrl: "https://demo.playpulse.tv",
+    username: "demo",
+    password: "demo_password",
+    connectionMode: "proxy",
+    color: "from-emerald-500 to-teal-700",
+    icon: "sparkles",
+    createdAt: 1700000001000,
+  },
+];
+
 export interface XtreamUserInfo {
   username: string;
   password?: string;
